@@ -1,6 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
+import seaborn as sns
+import scipy
 
 # import training set
 test_data = pd.read_csv('./regression_test.csv', header=None)
@@ -81,8 +83,8 @@ MSE_train_ridge = np.mean((Y_train - train_preds_ridge) ** 2)
 test_preds_ridge = predict_with_estimate(X_test, beta_ridge)
 MSE_test_ridge = np.mean((Y_test - test_preds_ridge) ** 2)
 
-print("In sample error    : " + str(MSE_train_ridge))
-print("Out of sample error: " + str(MSE_test_ridge))
+# print("In sample error    : " + str(MSE_train_ridge))
+# print("Out of sample error: " + str(MSE_test_ridge))
 
 def cross_val_split(data, num_folds):
   fold_size = int(len(data) / num_folds)
@@ -101,6 +103,7 @@ def cross_val_evaluate(data, num_folds, lambda_vec):
   
     folds = cross_val_split(data, num_folds)
     
+    # create dictionaries
     train_MSE = {1:[], 2:[], 3:[], 4:[], 5:[]}
     val_MSE = {1:[], 2:[], 3:[], 4:[], 5:[]}
 
@@ -125,43 +128,152 @@ def cross_val_evaluate(data, num_folds, lambda_vec):
             beta_ridge = ridge_estimate(X_train, y_train, penalty=pen)
             
             # evaluate
-            # in sample MSE
+            # training data MSE
             train_preds_ridge = predict_with_estimate(X_train, beta_ridge)
             MSE_train_ridge = np.mean((y_train - train_preds_ridge) ** 2)
             
-            # out of sample MSE
+            # validation data MSE
             test_preds_ridge = predict_with_estimate(X_val, beta_ridge)
-            MSE_test_ridge = np.mean((y_val - test_preds_ridge) ** 2)
+            MSE_val_ridge = np.mean((y_val - test_preds_ridge) ** 2)
             
             # store these in the appropriate dictionaries
             train_MSE[i+1].append(MSE_train_ridge)
-            val_MSE[i+1].append(MSE_test_ridge)
+            val_MSE[i+1].append(MSE_val_ridge)
     
    
     print("Training finished.")
 
     return train_MSE, val_MSE
 
-lambda_vec = np.linspace(0, 100, 200)
+lambda_vec = np.linspace(0, 100, num=1001)
 
 train_MSE, val_MSE = cross_val_evaluate(train, 5, lambda_vec)
 
 """
 Consider fold 1, scan penalty parameter
+Note to self, choose one that looks nice by setting random seed
 """
 
-train_errors_fold1 = train_MSE[1]
-val_errors_fold1 = val_MSE[1]
+plt.title("Plot of MSE errors for over different penalty terms for Ridge Regression [Fold 1]")
+plt.plot(lambda_vec, train_MSE[1], label = "Training Errors")
+plt.plot(lambda_vec, val_MSE[1], label = "Validation Errors")
+plt.legend()
+#plt.grid()
+plt.xlabel("$\lambda$")
+plt.ylabel("MSE")
+plt.show()
+# print("Optimal λ for Fold 1 is " + str(lambda_vec[np.argmin(val_MSE[1])]))
 
-for i in range(5):
-    plt.title("Plot of MSE errors for over different penalty terms for Ridge Regression [Fold 1]" + str(i))
-    plt.plot(lambda_vec, train_MSE[i+1], label = "Training Errors")
-    plt.plot(lambda_vec, val_MSE[i+1], label = "Validation Errors")
-    plt.legend()
-    plt.grid()
-    plt.xlabel("Penalty Term: $\lambda$")
-    plt.ylabel("MSE")
-    plt.show()
+
+# The optimal lambdas for for each fold obtained using argmin
+for i in range(0,5):
+    print("Optimal λ for Fold " + str(i+1) + " is " + str(lambda_vec[np.argmin(val_MSE[i+1])]))
+
+"""
+1.2.2
+"""
+# Compute the average validation MSE over the folds, to get average for each penalty term
+average_val_MSE = np.mean([val_MSE[fold] for fold in range(1, 6)], axis = 0)
+optimal_lambda = lambda_vec[np.argmin(average_val_MSE)]
+
+"""
+??
+# So the average in-sample MSE is:
+print("Average in-sample MSE:" + str(average_val_MSE[np.argmin(average_val_MSE)]))
+"""
+
+# train the model over the whole data set using the optimal_lambda
+beta_ridge = ridge_estimate(X_train, Y_train, penalty=optimal_lambda)
+
+# in sample MSE
+train_preds_ridge = predict_with_estimate(X_train, beta_ridge)
+MSE_train_ridge = np.mean((Y_train - train_preds_ridge) ** 2)
+
+# out of sample MSE
+test_preds_ridge = predict_with_estimate(X_test, beta_ridge)
+MSE_test_ridge = np.mean((Y_test - test_preds_ridge) ** 2)
+
+print("In sample error    : " + str(MSE_train_ridge))
+print("Out of sample error: " + str(MSE_test_ridge))
+
+"""
+Discussion
+"""
+
+# Differences observed in parameters
+abs_diff_beta = np.abs(beta_ml - beta_ridge)
+
+df_beta_parameters = pd.DataFrame(columns=['Linear Regression Parameters', 
+                                           'Ridge Regression Parameters',
+                                           'Absolute Difference in Parameters'],
+                                  index=[['β_%s' %i for i in range(18)]],
+                                  data = np.array([beta_ml, beta_ridge, abs_diff_beta]).T)
+
+df_beta_parameters
+
+# Percentage difference in predicted value
+p_diff_pred_ml = (Y_test - test_preds)*100/Y_test
+p_diff_pred_ridge = (Y_test - test_preds_ridge)*100/Y_test
+np.mean((np.abs(p_diff_pred_ridge - p_diff_pred_ml)))
+np.max(np.abs(p_diff_pred_ridge - p_diff_pred_ml))
+
+# Further Plots (NB could just use scale-location instead of ridge)
+### Residual Plots
+res_ml = Y_test - test_preds
+res_ridge = Y_test - test_preds_ridge
+
+fig1, ax1 = plt.subplots(ncols = 2, figsize=(10,5))
+
+sns.scatterplot(Y_test, res_ml, ax=ax1[0])
+sns.scatterplot(Y_test, res_ridge, ax=ax1[1])
+
+ax1[0].set_xlabel("Y values")
+ax1[1].set_xlabel("Y values")
+ax1[0].set_ylabel("Residuals")
+ax1[1].set_ylabel("Residuals")
+ax1[0].set_title('Residual plot for Linear Regression')
+ax1[1].set_title('Residual plot for Ridge Regression')
+
+
+plt.show()
+
+### Scale - Location Plots
+fig2, ax2 = plt.subplots(ncols = 2, figsize=(10,5))
+
+#standardise residuals
+std_res_ml = res_ml / np.std(res_ml)
+std_res_ridge = res_ridge / np.std(res_ridge)
+
+sns.scatterplot(test_preds, std_res_ml, ax=ax2[0])
+sns.scatterplot(test_preds_ridge, std_res_ridge, ax=ax2[1])
+ax2[0].set_xlabel("Predicted Values")
+ax2[1].set_xlabel("Predicted Values")
+ax2[0].set_ylabel("Standardised Residuals")
+ax2[1].set_ylabel("Standardised Residuals")
+ax2[0].set_title('Scale-Location plot for Linear Regression')
+ax2[1].set_title('Scale-Location plot for Ridge Regression')
+
+#QQplots??
+#NB most QQ plots need statsmodels which we can't use...
+
+fig3, ax3 = plt.subplots(ncols = 2, figsize=(10,5))
+
+scipy.stats.probplot(std_res_ml, dist="norm", plot=ax3[0])
+scipy.stats.probplot(std_res_ridge, dist="norm", plot=ax3[1])
+ax3[0].get_lines()[0].set_markersize(2)
+ax3[1].get_lines()[0].set_markersize(2)
+
+ax3[0].set_title("Normal Probability Plot for Linear Regression")
+ax3[1].set_title("Normal Probability Plot for Ridge Regression")
+
+
+
+
+
+
+
+
+
 
 
 
