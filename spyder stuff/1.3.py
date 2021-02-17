@@ -200,8 +200,8 @@ MSE_train_ridge = np.mean((Y_train - train_preds_ridge) ** 2)
 test_preds_ridge = predict_with_estimate(X_test, beta_ridge)
 MSE_test_ridge = np.mean((Y_test - test_preds_ridge) ** 2)
 
-print("In sample error    : " + str(MSE_train_ridge))
-print("Out of sample error: " + str(MSE_test_ridge))
+print("Ridge - In sample error    : " + str(MSE_train_ridge))
+print("Ridge - Out of sample error: " + str(MSE_test_ridge))
 
 """
 Discussion
@@ -355,8 +355,12 @@ MSE_train_kNN = np.mean((Y_train - train_preds_kNN) ** 2)
 test_preds_kNN = Y_pred_knn
 MSE_test_kNN = np.mean((Y_test - test_preds_kNN) ** 2)
 
+print("kNN - In sample error    : " + str(MSE_train_kNN))
+print("kNN - Out of sample error: " + str(MSE_test_kNN))
+
 print('Train set mean accuracy:', r2_score(Y_train, train_preds_ridge))
 print('Test set mean accuracy:', r2_score(Y_test, Y_pred_knn))
+
 
 
 def cross_val_evaluate_kNN(folds, k_vec):
@@ -399,25 +403,27 @@ def cross_val_evaluate_kNN(folds, k_vec):
     
    
     print("Training finished.")
+    return train_MSE, val_MSE
 
 k_vec = np.arange(25)+1
 
-train_MSE_kNN, val_MSE_kNN = cross_val_evaluate_ridge(folds, k_vec)
+train_MSE_kNN, val_MSE_kNN = cross_val_evaluate_kNN(folds, k_vec)
 
 """
 Consider fold 1, scan penalty parameter
 Note to self, choose one that looks nice by setting random seed
 """
 
-plt.title("Plot of MSE errors for over different k values for kNN [Fold 1]")
-plt.plot(k_vec, train_MSE_kNN[1], label = "Training Errors")
-plt.plot(k_vec, val_MSE_kNN[1], label = "Validation Errors")
-plt.legend()
-#plt.grid()
-plt.xlabel("k")
-plt.ylabel("MSE")
-plt.show()
-# print("Optimal λ for Fold 1 is " + str(lambda_vec[np.argmin(val_MSE[1])]))
+for i in range(1,6):
+    plt.title("Plot of MSE errors for over different k values for kNN [Fold " + str(i) + "]")
+    plt.plot(k_vec, train_MSE_kNN[i], label = "Training Errors")
+    plt.plot(k_vec, val_MSE_kNN[i], label = "Validation Errors")
+    plt.legend()
+    plt.grid()
+    plt.xlabel("k")
+    plt.ylabel("MSE")
+    plt.show()
+    # print("Optimal λ for Fold 1 is " + str(lambda_vec[np.argmin(val_MSE[1])]))
 
 
 # The optimal lambdas for for each fold obtained using argmin
