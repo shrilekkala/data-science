@@ -358,8 +358,8 @@ MSE_test_kNN = np.mean((Y_test - test_preds_kNN) ** 2)
 print("kNN - In sample error    : " + str(MSE_train_kNN))
 print("kNN - Out of sample error: " + str(MSE_test_kNN))
 
-print('Train set mean accuracy:', r2_score(Y_train, train_preds_ridge))
-print('Test set mean accuracy:', r2_score(Y_test, Y_pred_knn))
+print('Train set mean accuracy:', r2_score(Y_train, train_preds_kNN))
+print('Test set mean accuracy:', r2_score(Y_test, test_preds_kNN))
 
 
 
@@ -405,12 +405,12 @@ def cross_val_evaluate_kNN(folds, k_vec):
     print("Training finished.")
     return train_MSE, val_MSE
 
-k_vec = np.arange(25)+1
+k_vec = np.arange(50)+1
 
 train_MSE_kNN, val_MSE_kNN = cross_val_evaluate_kNN(folds, k_vec)
 
 """
-Consider fold 1, scan penalty parameter
+Consider fold 1, scan k parameter
 Note to self, choose one that looks nice by setting random seed
 """
 
@@ -429,3 +429,23 @@ for i in range(1,6):
 # The optimal lambdas for for each fold obtained using argmin
 for i in range(0,5):
     print("Optimal k for Fold " + str(i+1) + " is " + str(k_vec[np.argmin(val_MSE_kNN[i+1])]))
+    
+# Compute the average validation MSE over the folds, to get average for each penalty term
+average_val_MSE_kNN = np.mean([val_MSE_kNN[fold] for fold in range(1, 6)], axis = 0)
+optimal_k = k_vec[np.argmin(average_val_MSE_kNN)]
+
+# retrain the model over the whole data set using the optimal k
+
+# in sample MSE
+train_preds_kNN = reg_predict(X_train, Y_train, X_train, optimal_k)
+MSE_train_kNN = np.mean((Y_train - train_preds_kNN) ** 2)
+
+# out of sample MSE
+test_preds_kNN = reg_predict(X_train, Y_train, X_test, optimal_k)
+MSE_test_kNN = np.mean((Y_test - test_preds_kNN) ** 2)
+
+print("Cross-val kNN - In sample error    : " + str(MSE_train_kNN))
+print("Cross-val kNN - Out of sample error: " + str(MSE_test_kNN))
+
+print('Cross-val Train set mean accuracy:', r2_score(Y_train, train_preds_kNN))
+print('Cross-val Test set mean accuracy:', r2_score(Y_test, test_preds_kNN))
