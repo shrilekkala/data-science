@@ -4,7 +4,7 @@ import pandas as pd
 import seaborn as sns
 import scipy
 
-# import training set
+# import training and test sets
 test_data = pd.read_csv('./regression_test.csv', header=None)
 train_data = pd.read_csv('./regression_train.csv', header=None)
 
