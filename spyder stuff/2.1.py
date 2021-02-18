@@ -225,11 +225,11 @@ def cross_val_evaluate_logistic(folds, grid):
             # print(parameters)
             
             # train the model
-            model(X_train, y_train, X_val, y_val, decision_threshold=parameters[1], num_iterations=5000, learning_rate=parameters[0])
+            model_dict = model(X_train, y_train, X_val, y_val, decision_threshold=parameters[1], num_iterations=5000, learning_rate=parameters[0])
             
             # obtain the accuracies and store these in the appropriate dictionaries
-            train_acc[i+1].append(d["train_acc"])
-            val_acc[i+1].append(d["test_acc"])
+            train_acc[i+1].append(model_dict["train_acc"])
+            val_acc[i+1].append(model_dict["test_acc"])
     
     print("Training finished.")
     return train_acc, val_acc
@@ -242,12 +242,24 @@ test = np.hstack((X_test, Y_test[:, np.newaxis]))
 folds = cross_val_split(train, 5)
 
 # Create the grid for grid search
-learning_rate_vec = np.linspace(0.1, 1, 10)
-decision_threshold_vec = np.linspace(0.1, 1, 10)
+learning_rate_vec = np.arange(1,11) / 10
+decision_threshold_vec = np.arange(1,11) / 10
 grid = make_grid(learning_rate_vec, decision_threshold_vec)
 
 #NB takes a long time
 train_acc, val_acc = cross_val_evaluate_logistic(folds, grid)
 
+# Compute the average validation accuracy over the folds, to get average for each penalty term
+average_val_acc = np.mean([val_acc[fold] for fold in range(1, 6)], axis = 0)
+optimal_parameters = grid[np.argmax(average_val_acc)]
 
+print("Optimal Decision Threshold: " + str(optimal_parameters[1]))
+print("Optimal Learning Rate    : " + str(optimal_parameters[0]))
+
+# Mean Accuracies
+# Retrain the model using the optimal paramaters
+d = model(X_train_logistic, Y_train, X_test_logistic, Y_test, decision_threshold=optimal_parameters[1],
+          num_iterations=5000, learning_rate=optimal_parameters[0])
+print("train accuracy: {} %".format(d["train_acc"]))
+print("test accuracy: {} %".format(d["test_acc"]))
 
