@@ -68,91 +68,77 @@ def cross_entropy(y, sample_weights=None):
     
     return ce
 
-def split_dataset(X, y, column, value, sample_weights=None):
+def split_dataset2(X, y, column, value, sample_weights=None):
+  region1 = []
+  region2 = []
+  featVec = X[:, column]  
+  # We are removing the feature column from dataset (split), as before
+  X = X[:,[i for i in range(X.shape[1]) if i!=column]]  
+  for i in range(len(featVec)):
+      if featVec[i] <= value:
+          region1.append(i)
+      else:
+          region2.append(i)     
+  X1 = X[region1,:]
+  y1 = y[region1]
+  X2 = X[region2,:]
+  y2 = y[region2]
+  # returns list of splits, implemente das tuples. A few ways to do this.
+  if (sample_weights is None):
+      return [(X1, y1, None), (X2, y2, None)]
+  else:
+      return [(X1, y1, sample_weights[region1]) , (X2, y2, sample_weights[region2])]
+
+def cross_entropy_calculate(X, y, column, value, sample_weights=None):
     """
-    Return the split of data whose column-th feature equals value.
+    Calculate the resulted cross entropy given a vector of features.
     Arguments:
         X: training features, of shape (N, D).
         y: vector of training labels, of shape (N,).
-        column: the column of the feature for splitting.
-        value: the value of the column-th feature for splitting.
+        column: the column of the feature for calculating. 0 <= column < D
         sample_weights: weights for each samples, of shape (N,).
     Returns:
-        (np.array): the subset of X whose column-th feature equals value.
-        (np.array): the subset of y whose column-th feature equals value.
-        (np.array): the subset of sample weights whose column-th feature equals value.
-    """ 
-    ret = []
-    featVec = X[:, column]
-    # selecting all columns of X except the "column" we are splitting on
-    X = X[:,[i for i in range(X.shape[1]) if i!=column]]
-    
-    for i in range(len(featVec)):
-        if featVec[i]==value:
-            ret.append(i)
-    
-    sub_X = X[ret,:]
-    sub_y = y[ret]
-    sub_sample_weights = sample_weights[ret]
-    
-    return sub_X, sub_y, sub_sample_weights
-
-def cross_entropy_calculate(X, y, column, sample_weights=None):
-  """
-  Calculate the resulted cross entropy given a vector of features.
-  Arguments:
-      X: training features, of shape (N, D).
-      y: vector of training labels, of shape (N,).
-      column: the column of the feature for calculating. 0 <= column < D
-      sample_weights: weights for each samples, of shape (N,).
-  Returns:
-      (float): the resulted gini impurity after splitting by this feature.
-  """
-  if sample_weights is None:
-      sample_weights = np.ones(y.shape[0]) / y.shape[0]
-  
-  information_gain = 0
-  old_cost = cross_entropy(y, sample_weights)
-  
-  unique_vals = np.unique(X[:, column])
-  new_cost = 0.0
-  #split the values of i-th feature and calculate the cost 
-  for value in unique_vals:
-      sub_X, sub_y, sub_sample_weights = split_dataset(X, y, column, value, sample_weights=sample_weights) 
-      prob = np.sum(sub_sample_weights) / float(np.sum(sample_weights))
-      # New cost (cross entropy multiplied by a weighted prob depending on the sample weights)
-      new_cost += prob * cross_entropy(sub_y, sub_sample_weights)
-  
-  information_gain = old_cost - new_cost # information gain
-
-  return information_gain
-
-
-def choose_best_feature(X, y, sample_weights=None):
-    """
-    Choose the best feature to split according to criterion.
-    Args:
-        X: training features, of shape (N, D).
-        y: vector of training labels, of shape (N,).
-        sample_weights: weights for each samples, of shape (N,).
-    Returns:
-        (int): the column for the best feature
+        (float): the resulted gini impurity after splitting by this feature.
     """
     if sample_weights is None:
         sample_weights = np.ones(y.shape[0]) / y.shape[0]
     
-    best_feature_idx = 0
-    n_features = X.shape[1]    
+    information_gain = 0
+    old_cost = cross_entropy(y, sample_weights)
     
-    # use C4.5 algorithm
-    best_gain_cost = 0.0
-    for i in range(n_features):
-        info_gain_cost = cross_entropy_calculate(X, y, i, sample_weights=sample_weights)
-        if info_gain_cost > best_gain_cost:
-            best_gain_cost = info_gain_cost
-            best_feature_idx = i                
-    
-    return best_feature_idx
+    unique_vals = np.unique(X[:, column])
+    new_cost = 0.0
+    #split the values of i-th feature and calculate the cost of the split
+  
+    for sub_X, sub_y, sub_sample_weights in split_dataset2(X, y, column, value, sample_weights):
+        prob = np.sum(sub_sample_weights) / float(np.sum(sample_weights))
+        # New cost (cross entropy multiplied by a weighted prob depending on the sample weights)
+        new_cost += prob * cross_entropy(sub_y, sub_sample_weights)
+  
+    information_gain = old_cost - new_cost # information gain
+
+    return information_gain
+
+
+def choose_best_feature2(X, y, sample_weights=None):
+      if sample_weights is None:
+          sample_weights = np.ones(y.shape[0]) / y.shape[0]
+      n_features = X.shape[1]      
+      best_split=None
+      best_gain_cost = 0.0
+      for i in range(n_features):
+          unique_vals = np.unique(X[:, i])
+          for v in unique_vals:
+              info_gain_cost = cross_entropy_calculate(X, y, i, v, sample_weights )
+              #print(i,v,info_gain_cost)
+              if info_gain_cost > best_gain_cost:
+                  best_gain_cost = info_gain_cost
+                  best_split = (i,v)     
+      if best_split == None:
+          print(X)          
+          print(y)
+      return best_split
+
 
 
 def majority_vote(y, sample_weights=None):
@@ -182,8 +168,8 @@ def majority_vote(y, sample_weights=None):
 
 
 # Finally, we can build the decision tree by using choose_best_feature to find the best feature to split the X, 
-# and split_dataset to get sub-trees.
-def build_tree(X, y, feature_names, depth, sample_weights=None, max_depth=10, min_samples_leaf=2):
+# and spli _dataset to get sub-trees.
+def build_tree2(X, y, feature_names, depth, sample_weights=None, max_depth=10, min_samples_leaf=2):
   """Build the decision tree according to the data.
   Args:
       X: (np.array) training features, of shape (N, D).
@@ -193,47 +179,27 @@ def build_tree(X, y, feature_names, depth, sample_weights=None, max_depth=10, mi
       sample_weights: weights for each samples, of shape (N,).
   Returns:
       (dict): a dict denoting the decision tree. 
-      Example:
-          The first best feature name is 'title', and it has 5 different values: 0,1,2,3,4. 
-          For 'title' == 4, the next best feature name is 'pclass', we continue split the remain data. 
-          If it comes to the leaf, we use the majority_label by calling majority_vote.
-          
-          mytree = {
-              'title': {
-                  0: subtree0,
-                  1: subtree1,
-                  2: subtree2,
-                  3: subtree3,
-                  4: {
-                      'pclass': {
-                          1: majority_vote([1, 1, 1, 1]) # which is 1, majority_label
-                          2: majority_vote([1, 0, 1, 1]) # which is 1
-                          3: majority_vote([0, 0, 0]) # which is 0
-                      }
-                  }
-              }
-          }
+      <tree> ::= node:'leaf' label:<iris-categ>
+              |  node:'split' feature-name:<col-name> value:<num> leaf:<tree> right:<tree>  
   """
   mytree = dict()
 
   # include a clause for the cases where (i) no feature, (ii) all lables are the same, 
-  # (iii) depth exceed, or (iv) X is too small
-  if len(feature_names)==0 or len(np.unique(y))==1 or depth>=max_depth or len(X)<=min_samples_leaf: 
-      return majority_vote(y, sample_weights)
-  
-  else:
-    best_feature_idx = choose_best_feature(X, y, sample_weights=sample_weights)
+  # (iii) depth exceed, or (iv) X is too small, or (v) X consists of exactly the same features
+  if len(feature_names)==0 or len(np.unique(y))==1 or depth>=max_depth or len(X)<=min_samples_leaf or len(np.unique(X, axis = 0)): 
+    mytree = { 'node':'leaf' ,  'label': majority_vote(y, sample_weights) }
+  else:  
+    best_feature_idx, value = choose_best_feature2(X, y, sample_weights)
     best_feature_name = feature_names[best_feature_idx]
     feature_names = feature_names[:]
-    feature_names.remove(best_feature_name)
-    
-    mytree = {best_feature_name:{}}
-    unique_vals = np.unique(X[:, best_feature_idx])
-    for value in unique_vals:
-        sub_X, sub_y, sub_sample_weights = split_dataset(X, y, best_feature_idx, value, sample_weights=sample_weights)  
-        mytree[best_feature_name][value] = build_tree(sub_X, sub_y, feature_names, depth+1, sample_weights=sub_sample_weights) 
+    # feature_names.remove(best_feature_name)
+    splits = split_dataset2(X, y, best_feature_idx, value, sample_weights)
+    mytree = { 'node':'split', 'feature_name':best_feature_name, 'value':value }
+    # split[i] = (subX, sub_y, sub_sample_weight)
+    mytree['left'] = build_tree2(splits[0][0], splits[0][1], feature_names, depth+1, splits[0][2]) 
+    mytree['right'] = build_tree2(splits[1][0], splits[1][1], feature_names, depth+1, splits[1][2]) 
 
-    return mytree
+  return mytree
 
 # wrapper function to call the build_tree function
 def train_decision_tree(X, y, sample_weights=None):
@@ -254,34 +220,30 @@ def train_decision_tree(X, y, sample_weights=None):
     feature_names = X.columns.tolist()
     X = np.array(X)
     y = np.array(y)
-    tree = build_tree(X, y, feature_names, depth=1, sample_weights=sample_weights)
+    tree = build_tree2(X, y, feature_names, depth=1, sample_weights=sample_weights)
     return tree
 
 # fit the decision tree with training data
 tree = train_decision_tree(df_X_train, df_Y_train)
 
 # use this fitted decision tree to make predictions for our test set X_test
-def classify(tree, x):
-    """
-    Classify a single sample with the fitted decision tree.
-    Args:
-        x: ((pd.Dataframe) a single sample features, of shape (D,).
-    Returns:
-        (int): predicted testing sample label.
-    """
-    feature_name = list(tree.keys())[0] # first element
-    second_dict = tree[feature_name]            
-    key = x.loc[feature_name]
-    if key not in second_dict:
-        key = np.random.choice(list(second_dict.keys()))
-    value_of_key = second_dict[key]
-    # if value_of_key is a dictionary, recursively call the classify function again
-    if isinstance(value_of_key, dict):
-        label = classify(value_of_key, x)
-    # if not, return the value as the label
+def classify2(tree, x):
+  """
+  Classify a single sample with the fitted decision tree.
+  Args:
+      x: ((pd.Dataframe) a single sample features, of shape (D,).
+  Returns:
+      (int): predicted testing sample label.
+  """
+  if tree['node'] == 'leaf':
+    return tree['label']
+  else:
+    feature_name = tree['feature_name']
+    v = x.loc[feature_name]
+    if (v <= tree['value']):
+        return classify2(tree['left'],x)
     else:
-        label = value_of_key
-    return label
+        return classify2(tree['right'],x)
 
 def predict(X):
     """
@@ -292,11 +254,11 @@ def predict(X):
         (np.array): predicted testing sample labels, of shape (N,).
     """
     if len(X.shape)==1:
-        return classify(tree, X)
+        return classify2(tree, X)
     else:
         results=[]
         for i in range(X.shape[0]):
-            results.append(classify(tree, X.iloc[i, :]))
+            results.append(classify2(tree, X.iloc[i, :]))
         return np.array(results)
 
 def score(X_test, y_test):
@@ -353,7 +315,7 @@ def classify_random_forest(boot_tree, x):
     tree_preds = []
     
     for i in range(len(boot_tree)):
-        tree_preds.append(classify(boot_tree[i], x))
+        tree_preds.append(classify2(boot_tree[i], x))
     
     # assign the modal value as the label (if it exists)
     
