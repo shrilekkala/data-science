@@ -83,9 +83,9 @@ def split_dataset2(X, y, column, value, sample_weights=None):
   y1 = y[region1]
   X2 = X[region2,:]
   y2 = y[region2]
-  # returns list of splits, implemente das tuples. A few ways to do this.
+  # returns list of splits, implemented as tuples. A few ways to do this.
   if (sample_weights is None):
-      return [(X1, y1, None), (X2, y2, None)]
+      return [(X1, y1), (X2, y2)]
   else:
       return [(X1, y1, sample_weights[region1]) , (X2, y2, sample_weights[region2])]
 
@@ -106,7 +106,6 @@ def cross_entropy_calculate(X, y, column, value, sample_weights=None):
     information_gain = 0
     old_cost = cross_entropy(y, sample_weights)
     
-    unique_vals = np.unique(X[:, column])
     new_cost = 0.0
     #split the values of i-th feature and calculate the cost of the split
   
@@ -120,23 +119,29 @@ def cross_entropy_calculate(X, y, column, value, sample_weights=None):
     return information_gain
 
 
-def choose_best_feature2(X, y, sample_weights=None):
+def choose_best_feature2(X, y, max_features, sample_weights=None):
       if sample_weights is None:
           sample_weights = np.ones(y.shape[0]) / y.shape[0]
-      n_features = X.shape[1]      
+      n_features = X.shape[1]
+      
+      if n_features > max_features:
+          n_features = max_features
       best_split=None
       best_gain_cost = 0.0
-      for i in range(n_features):
+      
+      indices = np.arange(X.shape[1])
+      np.random.shuffle(indices)
+      
+      
+      for i in indices[:max_features]:
           unique_vals = np.unique(X[:, i])
           for v in unique_vals:
-              info_gain_cost = cross_entropy_calculate(X, y, i, v, sample_weights )
-              #print(i,v,info_gain_cost)
+              info_gain_cost = cross_entropy_calculate(X, y, i, v, sample_weights)
+              # print(i,v,info_gain_cost)
               if info_gain_cost > best_gain_cost:
                   best_gain_cost = info_gain_cost
                   best_split = (i,v)     
-      if best_split == None:
-          print(X)          
-          print(y)
+
       return best_split
 
 
@@ -169,40 +174,52 @@ def majority_vote(y, sample_weights=None):
 
 # Finally, we can build the decision tree by using choose_best_feature to find the best feature to split the X, 
 # and spli _dataset to get sub-trees.
-def build_tree2(X, y, feature_names, depth, sample_weights=None, max_depth=10, min_samples_leaf=2):
-  """Build the decision tree according to the data.
-  Args:
-      X: (np.array) training features, of shape (N, D).
-      y: (np.array) vector of training labels, of shape (N,).
-      feature_names (list): record the name of features in X in the original dataset.
-      depth (int): current depth for this node.
-      sample_weights: weights for each samples, of shape (N,).
-  Returns:
-      (dict): a dict denoting the decision tree. 
-      <tree> ::= node:'leaf' label:<iris-categ>
-              |  node:'split' feature-name:<col-name> value:<num> leaf:<tree> right:<tree>  
-  """
-  mytree = dict()
-
-  # include a clause for the cases where (i) no feature, (ii) all lables are the same, 
-  # (iii) depth exceed, or (iv) X is too small, or (v) X consists of exactly the same features
-  if len(feature_names)==0 or len(np.unique(y))==1 or depth>=max_depth or len(X)<=min_samples_leaf or len(np.unique(X, axis = 0)): 
-    mytree = { 'node':'leaf' ,  'label': majority_vote(y, sample_weights) }
-  else:  
-    best_feature_idx, value = choose_best_feature2(X, y, sample_weights)
-    best_feature_name = feature_names[best_feature_idx]
-    feature_names = feature_names[:]
-    # feature_names.remove(best_feature_name)
-    splits = split_dataset2(X, y, best_feature_idx, value, sample_weights)
-    mytree = { 'node':'split', 'feature_name':best_feature_name, 'value':value }
-    # split[i] = (subX, sub_y, sub_sample_weight)
-    mytree['left'] = build_tree2(splits[0][0], splits[0][1], feature_names, depth+1, splits[0][2]) 
-    mytree['right'] = build_tree2(splits[1][0], splits[1][1], feature_names, depth+1, splits[1][2]) 
-
-  return mytree
+def build_tree2(X, y, feature_names, max_features, max_depth, current_depth, sample_weights=None, min_samples_leaf=2):
+    """Build the decision tree according to the data.
+    Args:
+        X: (np.array) training features, of shape (N, D).
+        y: (np.array) vector of training labels, of shape (N,).
+        feature_names (list): record the name of features in X in the original dataset.
+        depth (int): current depth for this node.
+        sample_weights: weights for each samples, of shape (N,).
+    Returns:
+        (dict): a dict denoting the decision tree. 
+        <tree> ::= node:'leaf' label:<iris-categ>
+                |  node:'split' feature-name:<col-name> value:<num> leaf:<tree> right:<tree>  
+    """
+    mytree = dict()
+    
+    # include a clause for the cases where (i) no feature, (ii) all lables are the same, 
+    # (iii) depth exceed, or (iv) X is too small, or (v) X consists of exactly the same features
+    if len(feature_names)==0 or len(np.unique(y))==1 or current_depth>=max_depth or len(X)<=min_samples_leaf or len(np.unique(X, axis = 0)) == 1: 
+        mytree = { 'node':'leaf' ,  'label': majority_vote(y, sample_weights) }
+        return mytree
+    
+    placeholder = choose_best_feature2(X, y, max_features, sample_weights)    
+    
+    if placeholder == None:
+        mytree = { 'node':'leaf' ,  'label': majority_vote(y, sample_weights) }
+        return mytree
+    else:  
+        if placeholder == None:
+            print("ERROR - start")
+            print(X)
+            print(y)
+            print("ERROR - end")
+        best_feature_idx, value = placeholder
+        best_feature_name = feature_names[best_feature_idx]
+        feature_names = feature_names[:]
+        # feature_names.remove(best_feature_name)
+        splits = split_dataset2(X, y, best_feature_idx, value, sample_weights)
+        mytree = { 'node':'split', 'feature_name':best_feature_name, 'value':value }
+        # split[i] = (subX, sub_y, sub_sample_weight)
+        mytree['left'] = build_tree2(splits[0][0], splits[0][1], feature_names, max_features, max_depth, current_depth+1, splits[0][2]) 
+        mytree['right'] = build_tree2(splits[1][0], splits[1][1], feature_names, max_features, max_depth, current_depth+1, splits[1][2]) 
+          
+        return mytree
 
 # wrapper function to call the build_tree function
-def train_decision_tree(X, y, sample_weights=None):
+def train_decision_tree(X, y, max_features, max_depth, sample_weights=None):
     """
     Build the decision tree according to the training data.
     Args:
@@ -220,11 +237,11 @@ def train_decision_tree(X, y, sample_weights=None):
     feature_names = X.columns.tolist()
     X = np.array(X)
     y = np.array(y)
-    tree = build_tree2(X, y, feature_names, depth=1, sample_weights=sample_weights)
+    tree = build_tree2(X, y, feature_names, max_features, max_depth, current_depth=1, sample_weights=sample_weights)
     return tree
 
 # fit the decision tree with training data
-tree = train_decision_tree(df_X_train, df_Y_train)
+## tree = train_decision_tree(df_X_train, df_Y_train, max_features, max_depth)
 
 # use this fitted decision tree to make predictions for our test set X_test
 def classify2(tree, x):
@@ -245,7 +262,7 @@ def classify2(tree, x):
     else:
         return classify2(tree['right'],x)
 
-def predict(X):
+def predict(tree, X):
     """
     Predict classification results for X.
     Args:
@@ -265,8 +282,8 @@ def score(X_test, y_test):
   y_pred = predict(X_test)
   return np.float(sum(y_pred==y_test)) / float(len(y_test))
 
-print('Training accuracy:', score(df_X_train, df_Y_train))
-print('Test accuracy:', score(df_X_test, df_Y_test))
+## print('Training accuracy:', score(df_X_train, df_Y_train))
+## print('Test accuracy:', score(df_X_test, df_Y_test))
 
 # Create a bootstrapped dataset given a data frame
 def bootstrap(df_data, N_trees):
@@ -284,7 +301,7 @@ def bootstrap(df_data, N_trees):
 
 # function that creates a random forest via bagging
 # NB here I am using Hard Voting (i.e. taking the modal value instead of mean probability)
-def randforest(df_X_y, N_trees, sample_weights=None):
+def randforest(df_X_y, N_trees, max_features, max_depth, sample_weights=None):
     
     # bootstrap the data and create samples
     boot_data = bootstrap(df_X_y, N_trees)
@@ -299,7 +316,7 @@ def randforest(df_X_y, N_trees, sample_weights=None):
         boot_df_X = boot_df_X_y[boot_df_X_y.columns[:-1]]
         boot_df_y = boot_df_X_y[boot_df_X_y.columns[-1]]
 
-        boot_tree[i] = train_decision_tree(boot_df_X, boot_df_y)
+        boot_tree[i] = train_decision_tree(boot_df_X, boot_df_y, max_features, max_depth)
     
     return boot_tree
     
@@ -331,8 +348,6 @@ def classify_random_forest(boot_tree, x):
     
     return label
     
-# fit the random forest with training data
-boot_tree = randforest(train_data, 5, sample_weights=None)
 
 def predict_random_forest(boot_tree, X):
     """
@@ -354,10 +369,13 @@ def score_random_forest(boot_tree, X_test, y_test):
     y_pred = predict_random_forest(boot_tree, X_test)
     return np.float(sum(y_pred==y_test)) / float(len(y_test))
 
-print('Training accuracy:', score_random_forest(boot_tree, df_X_train, df_Y_train))
-print('Test accuracy:', score_random_forest(boot_tree, df_X_test, df_Y_test))
+# fit the random forest with training data
+## boot_tree = randforest(train_data, 5, 5, max_depth, sample_weights=None)
 
-def cross_val_evaluate_random_forest(folds, N_trees):
+## print('Training accuracy:', score_random_forest(boot_tree, df_X_train, df_Y_train))
+## print('Test accuracy:', score_random_forest(boot_tree, df_X_test, df_Y_test))
+
+def cross_val_evaluate_random_forest(folds, N_trees, max_features, max_depth):
     # create dictionaries
     train_acc = {1:[], 2:[], 3:[], 4:[], 5:[]}
     val_acc = {1:[], 2:[], 3:[], 4:[], 5:[]}
@@ -382,7 +400,7 @@ def cross_val_evaluate_random_forest(folds, N_trees):
         df_X_val = pd.DataFrame(X_val)
         
         # train the random forest and obtain the trees
-        boot_tree = randforest(df_train, N_trees = N_trees, sample_weights=None)
+        boot_tree = randforest(df_train, N_trees, max_features, max_depth, sample_weights=None)
         
         # obtain the accuracies and store in the appropriate dictionaries
         train_accuracy = score_random_forest(boot_tree, df_X_train, y_train)
@@ -393,4 +411,16 @@ def cross_val_evaluate_random_forest(folds, N_trees):
         
     return train_acc, val_acc
     
-train_accuracy, val_accuracy = cross_val_evaluate_random_forest(folds, N_trees = 10)
+a = 5
+b = 4
+c = 10
+train_accuracy, val_accuracy = cross_val_evaluate_random_forest(folds, a, b, c)
+print(train_accuracy)
+print(val_accuracy)
+
+mean_train_accuracy = np.mean([train_accuracy[i][0] for i in range(1,6)])
+mean_val_accuracy = np.mean([val_accuracy[i][0] for i in range(1,6)])
+
+print(mean_train_accuracy)
+print(mean_val_accuracy)
+

@@ -432,3 +432,6 @@ def cross_val_evaluate_random_forest(folds, N_trees):
     return train_acc, val_acc
     
 train_accuracy, val_accuracy = cross_val_evaluate_random_forest(folds, N_trees = 10)
+
+mean_val_accuracy = np.mean([val_accuracy[i][0] for i in range(1,6)])
+print(mean_val_accuracy)
