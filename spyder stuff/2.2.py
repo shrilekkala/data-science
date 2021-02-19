@@ -4,56 +4,39 @@ import pandas as pd
 import numpy as np
 from collections import Counter
 
-# load data
-data = load_iris()
-# print data to see how it is structured
-# print(data)
-X, y, column_names = data['data'], data['target'], data['feature_names']
-# combining all information in one data frame
-X_y = pd.DataFrame(X, columns=column_names)
-X_y['label'] = y
 
-# stacking data X and labels y into one matrix
-X_y_shuff = X_y.iloc[np.random.permutation(len(X_y))]
+# import training set
+test_data = pd.read_csv('./classification_test.csv', header=None)
+train_data = pd.read_csv('./classification_train.csv', header=None)
 
-# we split train to test as 70:30
-split_rate = 0.7
-train, test = np.split(X_y_shuff, [int(split_rate*(X_y_shuff.shape[0]))])
+df_X_train = train_data[train_data.columns[:-1]]
+df_Y_train = train_data[train_data.columns[-1]]
 
-X_train = train[train.columns[:-1]]
-y_train = train[train.columns[-1]]
+df_X_test = test_data[test_data.columns[:-1]]
+df_Y_test = test_data[test_data.columns[-1]]
 
-X_test = test[test.columns[:-1]]
-y_test = test[test.columns[-1]]
+X_train = np.array(train_data.iloc[:,:-1])
+Y_train = np.array(train_data.iloc()[:,-1])
 
-y_train = y_train.astype(int)
-y_test = y_test.astype(int)
+X_test = np.array(test_data.iloc[:,:-1])
+Y_test = np.array(test_data.iloc()[:,-1])
 
-def gini_impurity(y, sample_weights=None):
-    """ 
-    Calculate the gini impurity for labels.
-    Arguments:
-        y: vector of training labels, of shape (N,).
-        sample_weights: weights for each samples, of shape (N,).
-    Returns:
-        (float): the gini impurity for y.
-    """
-    if sample_weights is None:
-        sample_weights = np.ones(y.shape[0]) / y.shape[0]
-    
-    gini = 1
-    num = y.shape[0]  # number of labels
-    label_counts = {}  # caculate different labels in y，and store in label_counts
-    for i in range(num):
-        if y[i] not in label_counts.keys():
-            label_counts[y[i]] = 0
-        label_counts[y[i]] += sample_weights[i]
-    
-    for key in label_counts:
-        prob = float(label_counts[key]) / float(np.sum(sample_weights))
-        gini -= prob**2 ## <-- EDIT THIS LINE - DONE
-    
-    return gini
+# Aggregate the X and Y data into one array to be used for cross validation
+train = np.hstack((X_train, Y_train[:, np.newaxis]))
+test = np.hstack((X_test, Y_test[:, np.newaxis]))
+
+def cross_val_split(data, num_folds):
+  fold_size = int(len(data) / num_folds)
+  data_perm = np.random.permutation(data)
+  folds = []
+  for k in range(num_folds):
+    folds.append(data_perm[k*fold_size:(k+1)*fold_size, :])
+
+  return folds
+
+# Generate the folds
+folds = cross_val_split(train, 5)
+
 
 # NB I am just going to use entropy for now
 """
@@ -86,8 +69,7 @@ def cross_entropy(y, sample_weights=None):
     
     return ce
 
-cross_entropy(y_train.to_numpy())
-gini_impurity(y_train.to_numpy())
+cross_entropy(df_Y_train.to_numpy())
 
 def split_dataset(X, y, column, value, sample_weights=None):
     """
@@ -149,7 +131,7 @@ def cross_entropy_calculate(X, y, column, sample_weights=None):
   return information_gain
 
 # evaluate for feature sepal width (cm)
-cross_entropy_calculate(X_train.to_numpy(), y_train.to_numpy(), 3)
+cross_entropy_calculate(df_X_train.to_numpy(), df_Y_train.to_numpy(), 3)
 
 def choose_best_feature(X, y, sample_weights=None):
     """
@@ -177,7 +159,7 @@ def choose_best_feature(X, y, sample_weights=None):
     
     return best_feature_idx
 
-choose_best_feature(X_train.to_numpy(), y_train.to_numpy())
+choose_best_feature(df_X_train.to_numpy(), df_Y_train.to_numpy())
 
 def majority_vote(y, sample_weights=None):
   """
@@ -204,7 +186,7 @@ def majority_vote(y, sample_weights=None):
   # end answer
   return majority_label
 
-majority_vote(y_train.to_numpy())
+majority_vote(df_Y_train.to_numpy())
 
 # Finally, we can build the decision tree by using choose_best_feature to find the best feature to split the X, 
 # and split_dataset to get sub-trees.
@@ -283,7 +265,7 @@ def train_decision_tree(X, y, sample_weights=None):
     return tree
 
 # fit the decision tree with training data
-tree = train_decision_tree(X_train, y_train)
+tree = train_decision_tree(df_X_train, df_Y_train)
 
 # use this fitted decision tree to make predictions for our test set X_test
 def classify(tree, x):
@@ -328,8 +310,8 @@ def score(X_test, y_test):
   y_pred = predict(X_test)
   return np.float(sum(y_pred==y_test)) / float(len(y_test))
 
-print('Training accuracy:', score(X_train, y_train))
-print('Test accuracy:', score(X_test, y_test))
+print('Training accuracy:', score(df_X_train, df_Y_train))
+print('Test accuracy:', score(df_X_test, df_Y_test))
 
 # Create a bootstrapped dataset given a data frame
 def bootstrap(df_data, N_trees):
@@ -395,7 +377,7 @@ def classify_random_forest(boot_tree, x):
     return label
     
 # fit the random forest with training data
-boot_tree = randforest(train, 5, sample_weights=None)
+boot_tree = randforest(train_data, 5, sample_weights=None)
 
 def predict_random_forest(boot_tree, X):
     """
@@ -417,8 +399,8 @@ def score_random_forest(boot_tree, X_test, y_test):
     y_pred = predict_random_forest(boot_tree, X_test)
     return np.float(sum(y_pred==y_test)) / float(len(y_test))
 
-print('Training accuracy:', score_random_forest(boot_tree, X_train, y_train))
-print('Test accuracy:', score_random_forest(boot_tree, X_test, y_test))
+print('Training accuracy:', score_random_forest(boot_tree, df_X_train, df_Y_train))
+print('Test accuracy:', score_random_forest(boot_tree, df_X_test, df_Y_test))
 
 def cross_val_evaluate_random_forest(folds):
     # create dictionaries
