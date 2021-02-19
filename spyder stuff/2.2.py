@@ -397,7 +397,7 @@ def classify_random_forest(boot_tree, x):
 # fit the random forest with training data
 boot_tree = randforest(train, 5, sample_weights=None)
 
-def predict_random_forest(X):
+def predict_random_forest(boot_tree, X):
     """
     Predict classification results for X.
     Args:
@@ -413,9 +413,47 @@ def predict_random_forest(X):
             results.append(classify_random_forest(boot_tree, X.iloc[i, :]))
         return np.array(results)
     
-def score_random_forest(X_test, y_test):
-  y_pred = predict_random_forest(X_test)
-  return np.float(sum(y_pred==y_test)) / float(len(y_test))
+def score_random_forest(boot_tree, X_test, y_test):
+    y_pred = predict_random_forest(boot_tree, X_test)
+    return np.float(sum(y_pred==y_test)) / float(len(y_test))
 
-print('Training accuracy:', score_random_forest(X_train, y_train))
-print('Test accuracy:', score_random_forest(X_test, y_test))
+print('Training accuracy:', score_random_forest(boot_tree, X_train, y_train))
+print('Test accuracy:', score_random_forest(boot_tree, X_test, y_test))
+
+def cross_val_evaluate_random_forest(folds):
+    # create dictionaries
+    train_acc = {1:[], 2:[], 3:[], 4:[], 5:[]}
+    val_acc = {1:[], 2:[], 3:[], 4:[], 5:[]}
+    
+    for i in range(len(folds)):
+        
+        print('Fold', i+1)
+        # define the training set (i.e. selecting all folds and deleting the one used for validation)
+        train_set = np.delete(np.asarray(folds).reshape(len(folds), folds[0].shape[0], folds[0].shape[1]), i, axis=0)
+        train_folds = train_set.reshape(len(train_set)*train_set[0].shape[0], train_set[0].shape[1])
+        X_train = train_folds[:,:-1]
+        y_train = train_folds[:, -1]
+        
+        # define the validation set
+        val_fold = folds[i]
+        X_val = val_fold[:,:-1]
+        y_val = val_fold[:, -1]
+    
+        # convert whole training set, X_train and X_val into panda data frames as required
+        df_train = pd.DataFrame(train_folds)
+        df_X_train = pd.DataFrame(X_train)
+        df_X_val = pd.DataFrame(X_val)
+        
+        # train the random forest and obtain the trees
+        boot_tree = randforest(df_train, 5, sample_weights=None)
+        
+        # obtain the accuracies and store in the appropriate dictionaries
+        train_accuracy = score_random_forest(boot_tree, df_X_train, y_train)
+        val_accuracy = score_random_forest(boot_tree, df_X_val, y_val)
+        
+        train_acc[i+1].append(train_accuracy)
+        val_acc[i+1].append(val_accuracy)
+        
+    return train_acc, val_acc
+    
+train_accuracy, val_accuracy = cross_val_evaluate_random_forest(folds)
