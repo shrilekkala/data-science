@@ -6,6 +6,12 @@ import pandas as pd
 test_data = pd.read_csv('./classification_test.csv', header=None)
 train_data = pd.read_csv('./classification_train.csv', header=None)
 
+df_X_train = train_data[train_data.columns[:-1]]
+df_Y_train = train_data[train_data.columns[-1]]
+
+df_X_test = test_data[test_data.columns[:-1]]
+df_Y_test = test_data[test_data.columns[-1]]
+
 X_train = np.array(train_data.iloc[:,:-1])
 Y_train = np.array(train_data.iloc()[:,-1])
 
@@ -221,6 +227,7 @@ def cross_val_evaluate_logistic(folds, grid):
         y_val = val_fold[:, -1]
     
         # train the model and obtain the parameters for each lambda
+        # GRID SEARCH
         for parameters in grid:
             # print(parameters)
             
