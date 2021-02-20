@@ -335,16 +335,7 @@ def classify_random_forest(boot_tree, x):
         tree_preds.append(classify2(boot_tree[i], x))
     
     # assign the modal value as the label (if it exists)
-    
-    # find frequency of each value
-    freq_counter = Counter(tree_preds)
-    freq_dict = dict(freq_counter)
-    
-    max_freq = max(list(freq_counter.values()))
-    modal_values = [num for num, freq in freq_dict.items() if freq == max_freq]
-
-    # in case there are multiple modal values, randomly choose from the list
-    label = modal_values[np.random.randint(0, len(modal_values))]
+    label = x.mode().sample(1).values[0]
     
     return label
     
@@ -414,7 +405,8 @@ def cross_val_evaluate_random_forest(folds, N_trees, max_features, max_depth):
 a = 5
 b = 4
 c = 10
-train_accuracy, val_accuracy = cross_val_evaluate_random_forest(folds, a, b, c)
+# N_trees, max_features, max_depth
+train_accuracy, val_accuracy = cross_val_evaluate_random_forest(folds, 5, b, c)
 print(train_accuracy)
 print(val_accuracy)
 
@@ -424,3 +416,24 @@ mean_val_accuracy = np.mean([val_accuracy[i][0] for i in range(1,6)])
 print(mean_train_accuracy)
 print(mean_val_accuracy)
 
+# Scanning parameters
+N_trees_vec = np.array([5, 10, 15, 20])
+max_features_vec = np.array([2, 3, 4, 5])
+max_depth_vec = np.array([4, 6, 8, 10])
+
+# Create matrices to store accuracies
+train_acc_matrix = np.zeros((4,4,4))
+val_acc_matrix = np.zeros((4,4,4))
+
+
+for ntree, i in enumerate(N_trees_vec):
+    for max_feat, j in enumerate(max_features_vec):
+        for max_depth, k in enumerate(max_depth_vec):
+            train_accuracy, val_accuracy = cross_val_evaluate_random_forest(folds, ntree, max_feat, max_depth)
+            mean_train_accuracy = np.mean([train_accuracy[i][0] for i in range(1,6)])
+            mean_val_accuracy = np.mean([val_accuracy[i][0] for i in range(1,6)])
+            
+            train_acc_matrix[i,j,k] = mean_train_accuracy
+            val_acc_matrix[i,j,k] = mean_val_accuracy
+            
+cross_val_evaluate_random_forest(folds, 5, 2, 4)
