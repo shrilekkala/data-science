@@ -80,8 +80,12 @@ X_test_svm = np.array(df_X_test_svm)
 # Hinge loss function
 def compute_cost(W, X, y, regul_strength=1e5, rbf_kernel=False, sigma=None):
     n = X.shape[0]
+    
+    b_vec = np.dot(X[:, -1], W[-1])
+    
     if rbf_kernel:
-        distances = 1 - y * rbf(W, X, sigma)
+        # Separate b
+        distances = 1 - np.multiply(y, (rbf(W[:-1], X[:, :-1], sigma) + b_vec))
     else:
         distances = 1 - y * np.dot(X, W)
     
@@ -90,7 +94,7 @@ def compute_cost(W, X, y, regul_strength=1e5, rbf_kernel=False, sigma=None):
     
     # calculate cost
     if rbf_kernel:
-        cost = 1 / 2 * rbf(W, W, sigma) + hinge
+        cost = 1 / 2 * rbf(W[:-1], W[:-1], sigma) + hinge
     else:
         cost = 1 / 2 * np.dot(W, W) + hinge
     return cost
@@ -135,7 +139,7 @@ def sgd(X, y, max_iterations=2000, stop_criterion=0.01, learning_rate=1e-5, regu
             # compute cost
             cost = compute_cost(weights, X, y, regul_strength=1e5, rbf_kernel=rbf_kernel, sigma=sigma)
             if print_outcome:
-              print("Iteration is: {}, Cost is: {}".format(iteration, cost))
+                print("Iteration is: {}, Cost is: {}".format(iteration, cost))
             # stop criterion
             if abs(prev_cost - cost) < stop_criterion * prev_cost:
                 return weights
@@ -147,7 +151,7 @@ def sgd(X, y, max_iterations=2000, stop_criterion=0.01, learning_rate=1e-5, regu
 
 # train the model
 # NB using a v large C here
-W = sgd(X_train_svm, Y_train_svm, max_iterations=2000, stop_criterion=0.01, learning_rate=1e-3, regul_strength=1e20, print_outcome=True)
+## W = sgd(X_train_svm, Y_train_svm, max_iterations=2000, stop_criterion=0.01, learning_rate=1e-3, regul_strength=1e20, print_outcome=True)
 print("Training finished.")
 
 def sign(n):
@@ -158,32 +162,47 @@ def sign(n):
     return sgn
 
 # function to evaluate the mean accuracy
-def score(W, X, y, rbf_kernel = False, sigma = None):
+def score(W, X, y, model_train_data, rbf_kernel = False, sigma = None, return_preds = False):
+    model_X_train = model_train_data
+    
     y_preds = np.array([])
+    
+    b_vec = np.dot(model_X_train[:, -1], W[-1])
+    
     for i in range(X.shape[0]):
         if rbf_kernel:
-            y_pred = sign(rbf(X[i], W, sigma))
+            # Separate b   
+            y_pred = sign(rbf(X[i][:-1], W[:-1], sigma) + b_vec[i])
         else:
             y_pred = sign(np.dot(X[i], W))
         
         y_preds = np.append(y_preds, y_pred)
+        
+    if return_preds:
+        return np.float(sum(y_preds == y)) / float(len(y)), y_preds
+    else:
+        return np.float(sum(y_preds == y)) / float(len(y))
     
-    return np.float(sum(y_preds == y)) / float(len(y))
-
-print("Accuracy on train set: {}".format(score(W, X_train_svm, Y_train_svm)))
-print("Accuracy on test set: {}".format(score(W, X_test_svm, Y_test_svm)))
+    
+## print("Accuracy on train set: {}".format(score(W, X_train_svm, Y_train_svm)))
+## print("Accuracy on test set: {}".format(score(W, X_test_svm, Y_test_svm)))
 
 # definte the radial basis function
 def rbf(x, y, sigma):
     return np.exp(-(np.linalg.norm(x - y)**2)/(sigma))
 
+sigma_param = 0.01
+
 # train the model
 # NB using a v large C here
 W_rbf = sgd(X_train_svm, Y_train_svm, max_iterations=2000,
                    stop_criterion=0.01, learning_rate=1e-3, regul_strength=1e20,
-                   print_outcome=True, rbf_kernel=True, sigma=1)
+                   print_outcome=True, rbf_kernel=True, sigma=sigma_param)
 print("Training finished.")
 
 
-print("RBF Accuracy on train set: {}".format(score(W_rbf, X_train_svm, Y_train_svm,rbf_kernel=True, sigma=1)))
-print("RBF Accuracy on test set: {}".format(score(W_rbf, X_test_svm, Y_test_svm, rbf_kernel=True, sigma=1)))
+print("RBF Accuracy on train set: {}".format(score(W_rbf, X_train_svm, Y_train_svm, X_train_svm, rbf_kernel=True, sigma=0.001)))
+print("RBF Accuracy on test set: {}".format(score(W_rbf, X_test_svm, Y_test_svm, X_train_svm, rbf_kernel=True, sigma=0.001)))
+
+_, y_preds_train_rbf = score(W_rbf, X_train_svm, Y_train_svm, X_train_svm, rbf_kernel=True, sigma=sigma_param, return_preds = True)
+_, y_preds_test_rbf = score(W_rbf, X_train_svm, Y_train_svm, X_train_svm, rbf_kernel=True, sigma=sigma_param, return_preds = True)

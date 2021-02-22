@@ -165,6 +165,8 @@ def rbf(x, y, sigma):
 def compute_cost_rbf(W, X, y, regul_strength=1e5):
     n = X.shape[0]
     distances = 1 - y * rbf(W, X, 1) #sigma
+    #print(W.shape)
+    #print(X.shape)
     distances[distances < 0] = 0  # equivalent to max(0, distance)
     hinge = regul_strength * (np.sum(distances) / n)
     
@@ -235,6 +237,8 @@ def score_rbf(W, X, y):
     y_preds = np.array([])
     for i in range(X.shape[0]):
       y_pred = np.sign(rbf(X[i], W, 1))
+      #print(X[i].shape, "1")
+      #print(W.shape, "2")
       y_preds = np.append(y_preds, y_pred)
     
     return np.float(sum(y_preds == y)) / float(len(y))
