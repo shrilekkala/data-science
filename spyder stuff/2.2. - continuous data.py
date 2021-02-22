@@ -3,7 +3,6 @@ import pandas as pd
 import numpy as np
 from collections import Counter
 
-
 # import training set
 test_data = pd.read_csv('./classification_test.csv', header=None)
 train_data = pd.read_csv('./classification_train.csv', header=None)
@@ -209,7 +208,7 @@ def build_tree2(X, y, feature_names, max_features, max_depth, current_depth, sam
         best_feature_idx, value = placeholder
         best_feature_name = feature_names[best_feature_idx]
         feature_names = feature_names[:]
-        # feature_names.remove(best_feature_name)
+        feature_names.remove(best_feature_name)
         splits = split_dataset2(X, y, best_feature_idx, value, sample_weights)
         mytree = { 'node':'split', 'feature_name':best_feature_name, 'value':value }
         # split[i] = (subX, sub_y, sub_sample_weight)
@@ -278,8 +277,8 @@ def predict(tree, X):
             results.append(classify2(tree, X.iloc[i, :]))
         return np.array(results)
 
-def score(X_test, y_test):
-  y_pred = predict(X_test)
+def score(tree, X_test, y_test):
+  y_pred = predict(tree, X_test)
   return np.float(sum(y_pred==y_test)) / float(len(y_test))
 
 ## print('Training accuracy:', score(df_X_train, df_Y_train))
@@ -334,10 +333,18 @@ def classify_random_forest(boot_tree, x):
     for i in range(len(boot_tree)):
         tree_preds.append(classify2(boot_tree[i], x))
     
-    # assign the modal value as the label (if it exists)
-    label = x.mode().sample(1).values[0]
+    	    
+    # find frequency of each value
+    freq_counter = Counter(tree_preds)
+    freq_dict = dict(freq_counter)
+    
+    max_freq = max(list(freq_counter.values()))
+    modal_values = [num for num, freq in freq_dict.items() if freq == max_freq]
+    # in case there are multiple modal values, randomly choose from the list
+    label = modal_values[np.random.randint(0, len(modal_values))]
     
     return label
+    
     
 
 def predict_random_forest(boot_tree, X):
@@ -403,8 +410,8 @@ def cross_val_evaluate_random_forest(folds, N_trees, max_features, max_depth):
     return train_acc, val_acc
     
 a = 5
-b = 4
-c = 10
+b = 5
+c = 11
 # N_trees, max_features, max_depth
 train_accuracy, val_accuracy = cross_val_evaluate_random_forest(folds, 5, b, c)
 print(train_accuracy)
@@ -426,9 +433,13 @@ train_acc_matrix = np.zeros((4,4,4))
 val_acc_matrix = np.zeros((4,4,4))
 
 
-for ntree, i in enumerate(N_trees_vec):
-    for max_feat, j in enumerate(max_features_vec):
-        for max_depth, k in enumerate(max_depth_vec):
+
+
+
+"""
+for i, ntree in enumerate(N_trees_vec):
+    for j, max_feat in enumerate(max_features_vec):
+        for k, max_depth in enumerate(max_depth_vec):
             train_accuracy, val_accuracy = cross_val_evaluate_random_forest(folds, ntree, max_feat, max_depth)
             mean_train_accuracy = np.mean([train_accuracy[i][0] for i in range(1,6)])
             mean_val_accuracy = np.mean([val_accuracy[i][0] for i in range(1,6)])
@@ -437,3 +448,10 @@ for ntree, i in enumerate(N_trees_vec):
             val_acc_matrix[i,j,k] = mean_val_accuracy
             
 cross_val_evaluate_random_forest(folds, 5, 2, 4)
+
+optimal_ntree = 
+optimal_max_feat = 
+optimal_max_depth = 
+"""
+
+
