@@ -2,6 +2,9 @@
 import pandas as pd
 import numpy as np
 from collections import Counter
+import seaborn as sns
+import matplotlib.pyplot as plt
+
 
 # import training set
 test_data = pd.read_csv('./classification_test.csv', header=None)
@@ -172,7 +175,7 @@ def majority_vote(y, sample_weights=None):
 
 
 # Finally, we can build the decision tree by using choose_best_feature to find the best feature to split the X, 
-# and spli _dataset to get sub-trees.
+# and split _dataset to get sub-trees.
 def build_tree2(X, y, feature_names, max_features, max_depth, current_depth, sample_weights=None, min_samples_leaf=2):
     """Build the decision tree according to the data.
     Args:
@@ -425,33 +428,76 @@ print(mean_val_accuracy)
 
 # Scanning parameters
 N_trees_vec = np.array([5, 10, 15, 20])
-max_features_vec = np.array([2, 3, 4, 5])
-max_depth_vec = np.array([4, 6, 8, 10])
+max_features_vec = np.array([2, 4, 6, 8, 10])
+max_depth_vec = np.array([2, 4, 6, 8, 10])
 
 # Create matrices to store accuracies
-train_acc_matrix = np.zeros((4,4,4))
-val_acc_matrix = np.zeros((4,4,4))
+train_acc_matrix = np.zeros((5,5))
+val_acc_matrix = np.zeros((5,5))
+
+# Grid Search over max_features and max_depth keeping N_trees fixed at 5
+for j, max_feat in enumerate(max_features_vec):
+    print(j)
+    for k, max_depth in enumerate(max_depth_vec):
+        train_accuracy, val_accuracy = cross_val_evaluate_random_forest(folds, 5, max_feat, max_depth)
+        mean_train_accuracy = np.mean([train_accuracy[i][0] for i in range(1,6)])
+        mean_val_accuracy = np.mean([val_accuracy[i][0] for i in range(1,6)])
+        
+        train_acc_matrix[j,k] = mean_train_accuracy
+        val_acc_matrix[j,k] = mean_val_accuracy
+        
+# cross_val_evaluate_random_forest(folds, 5, 2, 4)
+
+optimal_indices = np.where(val_acc_matrix == val_acc_matrix.max())
+optimal_max_features = max_features_vec[optimal_indices[0][0]]
+optimal_max_depth = max_depth_vec[optimal_indices[1][0]]
+
+#optimal_max_feat = 6
+#optimal_max_depth = 8
+## NB for a 10x10 search it was 3, 10 but accuracy is 0.735 (cf 0.725)
 
 
+# Scan over optimal N_trees
+N_trees_vec = np.array([4, 8, 12, 16, 20])
 
+# Create matrices to store accuracies
+train_acc_matrix = np.zeros(5)
+val_acc_matrix = np.zeros(5)
 
+for i, N_trees, in enumerate(N_trees_vec):
+    print(i)
+    train_accuracy, val_accuracy = cross_val_evaluate_random_forest(folds, N_trees, optimal_max_features, optimal_max_depth)
+    mean_train_accuracy = np.mean([train_accuracy[k][0] for k in range(1,6)])
+    mean_val_accuracy = np.mean([val_accuracy[k][0] for k in range(1,6)])
+    
+    train_acc_matrix[i] = mean_train_accuracy
+    val_acc_matrix[i] = mean_val_accuracy
+    
+optimal_index = np.where(val_acc_matrix == val_acc_matrix.max())
+optimal_N_trees = N_trees_vec[optimal_index[0][0]]
 
-"""
-for i, ntree in enumerate(N_trees_vec):
-    for j, max_feat in enumerate(max_features_vec):
-        for k, max_depth in enumerate(max_depth_vec):
-            train_accuracy, val_accuracy = cross_val_evaluate_random_forest(folds, ntree, max_feat, max_depth)
-            mean_train_accuracy = np.mean([train_accuracy[i][0] for i in range(1,6)])
-            mean_val_accuracy = np.mean([val_accuracy[i][0] for i in range(1,6)])
-            
-            train_acc_matrix[i,j,k] = mean_train_accuracy
-            val_acc_matrix[i,j,k] = mean_val_accuracy
-            
-cross_val_evaluate_random_forest(folds, 5, 2, 4)
+#optimal_max_depth = 20
+## NB after 20, it started going down again
 
-optimal_ntree = 
-optimal_max_feat = 
-optimal_max_depth = 
-"""
+# train the model with the optimal parameters
+boot_tree = randforest(train_data, optimal_N_trees, optimal_max_features, optimal_max_depth, sample_weights=None)
 
+Y_train_preds = predict_random_forest(boot_tree, df_X_train)
+Y_test_preds = predict_random_forest(boot_tree, df_X_test)
 
+print('Training accuracy:', score_random_forest(boot_tree, df_X_train, df_Y_train))
+print('Test accuracy:', score_random_forest(boot_tree, df_X_test, df_Y_test))
+
+df_data_train = pd.DataFrame({'y_Actual [Train]': Y_train, 'y_Predicted [Train]': Y_train_preds})
+df_data_test = pd.DataFrame({'y_Actual [Test]': Y_test, 'y_Predicted [Test]': Y_test_preds})
+
+confusion_matrix_train = pd.crosstab(df_data_train['y_Actual [Train]'], df_data_train['y_Predicted [Train]'], rownames=['Actual'], colnames=['Predicted'])
+confusion_matrix_test = pd.crosstab(df_data_test['y_Actual [Test]'], df_data_test['y_Predicted [Test]'], rownames=['Actual'], colnames=['Predicted'])
+
+ax = sns.heatmap(confusion_matrix_train, annot=True, fmt='g')
+plt.title("Confusion Matrix for Training Data")
+plt.show()
+
+sns.heatmap(confusion_matrix_test, annot=True, fmt='g')
+plt.title("Confusion Matrix for Test Data")
+plt.show()
