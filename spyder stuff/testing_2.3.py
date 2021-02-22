@@ -78,14 +78,21 @@ X_train_svm = np.array(df_X_train_svm)
 X_test_svm = np.array(df_X_test_svm)
 
 # Hinge loss function
-def compute_cost(W, X, y, regul_strength=1e5):
+def compute_cost(W, X, y, regul_strength=1e5, rbf_kernel=False, sigma=None):
     n = X.shape[0]
-    distances = 1 - y * np.dot(X, W)
+    if rbf_kernel:
+        distances = 1 - y * rbf(W, X, sigma)
+    else:
+        distances = 1 - y * np.dot(X, W)
+    
     distances[distances < 0] = 0  # equivalent to max(0, distance)
     hinge = regul_strength * (np.sum(distances) / n)
     
     # calculate cost
-    cost = 1 / 2 * np.dot(W, W) + hinge
+    if rbf_kernel:
+        cost = 1 / 2 * rbf(W, W, sigma) + hinge
+    else:
+        cost = 1 / 2 * np.dot(W, W) + hinge
     return cost
 
 # calculate gradient of cost
@@ -108,7 +115,7 @@ def calculate_cost_gradient(W, X_batch, y_batch, regul_strength=1e5):
     dw = dw/len(y_batch)  # average
     return dw
 
-def sgd(X, y, max_iterations=2000, stop_criterion=0.01, learning_rate=1e-5, regul_strength=1e5, print_outcome=False):
+def sgd(X, y, max_iterations=2000, stop_criterion=0.01, learning_rate=1e-5, regul_strength=1e5, print_outcome=False, rbf_kernel=False, sigma=None):
     # initialise zero weights
     weights = np.zeros(X.shape[1])
     nth = 0
@@ -126,7 +133,7 @@ def sgd(X, y, max_iterations=2000, stop_criterion=0.01, learning_rate=1e-5, regu
         # convergence check on 2^n'th iteration
         if iteration==2**nth or iteration==max_iterations-1:
             # compute cost
-            cost = compute_cost(weights, X, y, regul_strength)
+            cost = compute_cost(weights, X, y, regul_strength=1e5, rbf_kernel=rbf_kernel, sigma=sigma)
             if print_outcome:
               print("Iteration is: {}, Cost is: {}".format(iteration, cost))
             # stop criterion
@@ -143,14 +150,23 @@ def sgd(X, y, max_iterations=2000, stop_criterion=0.01, learning_rate=1e-5, regu
 W = sgd(X_train_svm, Y_train_svm, max_iterations=2000, stop_criterion=0.01, learning_rate=1e-3, regul_strength=1e20, print_outcome=True)
 print("Training finished.")
 
+def sign(n):
+    if n == 0:
+        sgn = 1
+    else:
+        sgn = np.sign(n)
+    return sgn
+
 # function to evaluate the mean accuracy
-def score(W, X, y):
+def score(W, X, y, rbf_kernel = False, sigma = None):
     y_preds = np.array([])
     for i in range(X.shape[0]):
-        y_pred = np.sign(np.dot(X[i], W))
+        if rbf_kernel:
+            y_pred = sign(rbf(X[i], W, sigma))
+        else:
+            y_pred = sign(np.dot(X[i], W))
+        
         y_preds = np.append(y_preds, y_pred)
-    
-    # print(y_preds)
     
     return np.float(sum(y_preds == y)) / float(len(y))
 
@@ -161,83 +177,13 @@ print("Accuracy on test set: {}".format(score(W, X_test_svm, Y_test_svm)))
 def rbf(x, y, sigma):
     return np.exp(-(np.linalg.norm(x - y)**2)/(sigma))
 
-# Hinge loss function
-def compute_cost_rbf(W, X, y, regul_strength=1e5):
-    n = X.shape[0]
-    distances = 1 - y * rbf(W, X, 1) #sigma
-    distances[distances < 0] = 0  # equivalent to max(0, distance)
-    hinge = regul_strength * (np.sum(distances) / n)
-    
-    # calculate cost
-    cost = 1 / 2 * rbf(W, W, 1) + hinge #sigma
-    return cost
-
-# calculate gradient of cost
-def calculate_cost_gradient_rbf(W, X_batch, y_batch, regul_strength=1e5):
-  # if only one example is passed
-  if type(y_batch) == np.float64:
-      y_batch = np.asarray([y_batch])
-      X_batch = np.asarray([X_batch])  # gives multidimensional array
-
-  distance = 1 - (y_batch * np.dot(X_batch, W))
-  dw = np.zeros(len(W))
-
-  for ind, d in enumerate(distance):
-      if max(0, d)==0:
-          di = W
-      else:
-          di = W - (regul_strength * y_batch[ind] * X_batch[ind])
-      dw += di
-
-  dw = dw/len(y_batch)  # average
-  return dw
-
-
-# EDIT THIS FUNCTION
-def sgd_kernel(X, y, max_iterations=2000, stop_criterion=0.01, learning_rate=1e-5, regul_strength=1e5, print_outcome=False):
-  # initialise zero weights
-  weights = np.zeros(X.shape[1])
-  nth = 0
-  # initialise starting cost as infinity
-  prev_cost = np.inf
-  
-  # stochastic gradient descent
-  for iteration in range(1, max_iterations):
-      # shuffle to prevent repeating update cycles
-      np.random.shuffle([X, y])
-      for ind, x in enumerate(X):
-          ascent = calculate_cost_gradient_rbf(weights, x, y[ind], regul_strength) ## <-- EDIT THIS LINE - DONE
-          weights = weights - (learning_rate * ascent)
-
-      # convergence check on 2^n'th iteration
-      if iteration==2**nth or iteration==max_iterations-1:
-          # compute cost
-          cost = compute_cost_rbf(weights, X, y, regul_strength)  ## <-- EDIT THIS LINE - DONE
-          if print_outcome:
-            print("Iteration is: {}, Cost is: {}".format(iteration, cost))
-          # stop criterion
-          if abs(prev_cost - cost) < stop_criterion * prev_cost:
-              return weights
-          
-          prev_cost = cost
-          nth += 1
-  
-  return weights
-
-
 # train the model
 # NB using a v large C here
-W_rbf = sgd_kernel(X_train_svm, Y_train_svm, max_iterations=2000, stop_criterion=0.01, learning_rate=1e-3, regul_strength=1e20, print_outcome=True)
+W_rbf = sgd(X_train_svm, Y_train_svm, max_iterations=2000,
+                   stop_criterion=0.01, learning_rate=1e-3, regul_strength=1e20,
+                   print_outcome=True, rbf_kernel=True, sigma=1)
 print("Training finished.")
 
 
-def score_rbf(W, X, y):
-    y_preds = np.array([])
-    for i in range(X.shape[0]):
-      y_pred = np.sign(rbf(X[i], W, 1))
-      y_preds = np.append(y_preds, y_pred)
-    
-    return np.float(sum(y_preds == y)) / float(len(y))
-
-print("RBF Accuracy on train set: {}".format(score_rbf(W_rbf, X_train_svm, Y_train_svm)))
-print("RBF Accuracy on test set: {}".format(score_rbf(W_rbf, X_test_svm, Y_test_svm)))
+print("RBF Accuracy on train set: {}".format(score(W_rbf, X_train_svm, Y_train_svm,rbf_kernel=True, sigma=1)))
+print("RBF Accuracy on test set: {}".format(score(W_rbf, X_test_svm, Y_test_svm, rbf_kernel=True, sigma=1)))
