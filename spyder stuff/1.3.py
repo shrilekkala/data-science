@@ -273,10 +273,15 @@ ax3[1].get_lines()[0].set_markersize(2)
 ax3[0].set_title("Normal Probability Plot for Linear Regression")
 ax3[1].set_title("Normal Probability Plot for Ridge Regression")
 
+# Correlation Matrix
+corr_mat = pd.DataFrame(X_train).corr()
+sns.heatmap(np.array(corr_mat)[1:, 1:])
+plt.show()
+
 """""""""""""""""""""""""""""""""""""""""
 kNN 
 """""""""""""""""""""""""""""""""""""""""
-# distrance function for kNN
+# distance function for kNN
 def euclidian_distance(p, q):
     return np.sqrt(np.sum((q-p)**2, axis = 1))
 

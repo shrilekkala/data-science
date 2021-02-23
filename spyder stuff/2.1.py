@@ -25,7 +25,7 @@ X_test_logistic = X_test.T
 def logistic(x):
     return 1 / (1 + np.exp(-x))
 
-# function to compute y lof
+# function to compute y log
 def predict_log(X, beta, beta_0):
   y_log = logistic(beta.T @ X + beta_0)
   return y_log
@@ -248,8 +248,6 @@ test = np.hstack((X_test, Y_test[:, np.newaxis]))
 # Generate the folds
 folds = cross_val_split(train, 5)
 
-
-
 # Create the grid for grid search
 learning_rate_vec = np.arange(1,11) / 10
 decision_threshold_vec = np.arange(1,11) / 10
@@ -265,10 +263,24 @@ optimal_parameters = grid[np.argmax(average_val_acc)]
 print("Optimal Decision Threshold: " + str(optimal_parameters[1]))
 print("Optimal Learning Rate    : " + str(optimal_parameters[0]))
 
-# Mean Accuracies
 # Retrain the model using the optimal paramaters
 d = model(X_train_logistic, Y_train, X_test_logistic, Y_test, decision_threshold=optimal_parameters[1],
           num_iterations=5000, learning_rate=optimal_parameters[0])
+
+# Mean Accuracies
 print("train accuracy: {} %".format(d["train_acc"]))
 print("test accuracy: {} %".format(d["test_acc"]))
 
+from matplotlib import cm
+
+fig = plt.figure()
+ax = fig.gca(projection='3d')
+
+# Plot the surface.
+surf = ax.plot_trisurf(grid[:,0], grid[:,1], average_val_acc, cmap=cm.coolwarm,
+                       linewidth=0, antialiased=False)
+ax.view_init(20, -20)
+ax.set_xlabel('Learning Rate')
+ax.set_ylabel('Decision Threshold')
+ax.set_zlabel('Validation Accuracy')
+plt.show()
