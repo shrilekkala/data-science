@@ -70,7 +70,7 @@ def cross_entropy(y, sample_weights=None):
     
     return ce
 
-def split_dataset2(X, y, column, value, sample_weights=None):
+def split_dataset(X, y, column, value, sample_weights=None):
     # create two regions R1 and R2
     R1 = []
     R2 = []
@@ -118,7 +118,7 @@ def cross_entropy_calculate(X, y, column, value, sample_weights=None):
     new_cost = 0.0
     
     # split the values of i-th feature and calculate the cost of the split
-    for sub_X, sub_y, sub_sample_weights in split_dataset2(X, y, column, value, sample_weights):
+    for sub_X, sub_y, sub_sample_weights in split_dataset(X, y, column, value, sample_weights):
         prob = np.sum(sub_sample_weights) / float(np.sum(sample_weights))
         
         # New cost (cross entropy multiplied by a weighted prob depending on the sample weights)
@@ -198,12 +198,9 @@ def majority_vote(y, sample_weights=None):
 
 def build_tree(X, y, feature_names, max_features, max_depth, current_depth, sample_weights=None, min_samples_leaf=2):
     """Build the decision tree according to the data.
-    Args:
+    X and y arguments:
         X: (np.array) training features, of shape (N, D).
         y: (np.array) vector of training labels, of shape (N,).
-        feature_names (list): record the name of features in X in the original dataset.
-        depth (int): current depth for this node.
-        sample_weights: weights for each samples, of shape (N,).
     Returns:
         (dict): a dict denoting the decision tree. 
         <tree> ::= node:'leaf' label:<iris-categ>
@@ -213,7 +210,11 @@ def build_tree(X, y, feature_names, max_features, max_depth, current_depth, samp
     
     # include a clause for the cases where (i) no feature, (ii) all lables are the same, 
     # (iii) depth exceed, or (iv) X is too small, or (v) X consists of exactly the same features
-    if len(feature_names)==0 or len(np.unique(y))==1 or current_depth>=max_depth or len(X)<=min_samples_leaf or len(np.unique(X, axis = 0)) == 1: 
+    if (len(feature_names)==0 or 
+        len(np.unique(y))==1 or 
+        current_depth>=max_depth or 
+        len(X)<=min_samples_leaf or 
+        len(np.unique(X, axis = 0))) == 1: 
         mytree = { 'node':'leaf' ,  'label': majority_vote(y, sample_weights) }
         return mytree
     
@@ -234,7 +235,7 @@ def build_tree(X, y, feature_names, max_features, max_depth, current_depth, samp
         feature_names.remove(best_feature_name)
         
         # split the data according to the best split
-        splits = split_dataset2(X, y, best_feature_idx, value, sample_weights)
+        splits = split_dataset(X, y, best_feature_idx, value, sample_weights)
         
         # create the tree for this specific split
         mytree = { 'node':'split', 'feature_name':best_feature_name, 'value':value }
@@ -253,11 +254,6 @@ def build_tree(X, y, feature_names, max_features, max_depth, current_depth, samp
 def train_decision_tree(X, y, max_features, max_depth, sample_weights=None):
     """
     Build the decision tree according to the training data.
-    Args:
-        X: (pd.Dataframe) training features, of shape (N, D). Each X[i] is a training sample.
-        y: (pd.Series) vector of training labels, of shape (N,). y[i] is the label for X[i], and each y[i] is
-        an integer in the range 0 <= y[i] <= C. Here C = 1.
-        sample_weights: weights for each samples, of shape (N,).
     """
     if sample_weights is None:
         # if the sample weights is not provided, we assume the samples have uniform weights
@@ -326,7 +322,7 @@ def bootstrap(df_data, N_trees):
     
     # random sampling with replacement
     for i in range(N_trees):
-        boot_data[i] = df_data.sample(n = len(X_train), replace = True)
+        boot_data[i] = df_data.sample(n = int(len(X_train) * 9/10), replace = True)
         
     return boot_data
 
@@ -379,8 +375,6 @@ def classify_random_forest(boot_tree, x):
     label = modal_values[np.random.randint(0, len(modal_values))]
     
     return label
-    
-    
 
 def predict_random_forest(boot_tree, X):
     """
@@ -467,10 +461,9 @@ max_depth_vec = np.array([2, 4, 6, 8, 10])
 train_acc_matrix = np.zeros((5,5))
 val_acc_matrix = np.zeros((5,5))
 
-"""""""""""""""""
 # Grid Search over max_features and max_depth keeping N_trees fixed at 5
 for j, max_feat in enumerate(max_features_vec):
-    print("Outer Loop: " + str(j)+ "/5")
+    print("Outer Loop: " + str(j+1)+ "/5")
     for k, max_depth in enumerate(max_depth_vec):
         train_accuracy, val_accuracy = cross_val_evaluate_random_forest(folds, 5, max_feat, max_depth)
         mean_train_accuracy = np.mean([train_accuracy[i][0] for i in range(1,6)])
@@ -498,7 +491,7 @@ train_acc_matrix = np.zeros(5)
 val_acc_matrix = np.zeros(5)
 
 for i, N_trees, in enumerate(N_trees_vec):
-    print(i)
+    print("Loop: " + str(i+1)+ "/5")
     train_accuracy, val_accuracy = cross_val_evaluate_random_forest(folds, N_trees, optimal_max_features, optimal_max_depth)
     mean_train_accuracy = np.mean([train_accuracy[k][0] for k in range(1,6)])
     mean_val_accuracy = np.mean([val_accuracy[k][0] for k in range(1,6)])
@@ -509,6 +502,14 @@ for i, N_trees, in enumerate(N_trees_vec):
 optimal_index = np.where(val_acc_matrix == val_acc_matrix.max())
 optimal_N_trees = N_trees_vec[optimal_index[0][0]]
 
+rand_forest_hyper = np.array([[optimal_N_trees], [optimal_max_depth], [optimal_max_features]])
+rand_forest_hyper_df = pd.DataFrame(rand_forest_hyper.T, 
+                                    columns = ["Number of Decision Trees", "Depth of Trees", "Maximum Number of Descriptors"], 
+                                    index = ["Optimal Value"])
+
+"""
+"""
+
 #optimal_max_depth = 20
 ## NB after 20, it started going down again
 
@@ -518,8 +519,8 @@ boot_tree = randforest(train_data, optimal_N_trees, optimal_max_features, optima
 Y_train_preds = predict_random_forest(boot_tree, df_X_train)
 Y_test_preds = predict_random_forest(boot_tree, df_X_test)
 
-print('Training accuracy:', score_random_forest(boot_tree, df_X_train, df_Y_train))
-print('Test accuracy:', score_random_forest(boot_tree, df_X_test, df_Y_test))
+print('Random Forest - In-Sample accuracy     :', score_random_forest(boot_tree, df_X_train, df_Y_train))
+print('Random Forest - Out-of-Sample accuracy :', score_random_forest(boot_tree, df_X_test, df_Y_test))
 
 df_data_train = pd.DataFrame({'y_Actual [Train]': Y_train, 'y_Predicted [Train]': Y_train_preds})
 df_data_test = pd.DataFrame({'y_Actual [Test]': Y_test, 'y_Predicted [Test]': Y_test_preds})
@@ -534,4 +535,3 @@ plt.show()
 sns.heatmap(confusion_matrix_test, annot=True, fmt='g')
 plt.title("Confusion Matrix for Test Data")
 plt.show()
-"""""""""""""""""

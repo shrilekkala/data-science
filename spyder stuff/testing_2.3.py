@@ -1,5 +1,5 @@
 import numpy as np
-# import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 import pandas as pd
 
 # import training set
@@ -78,14 +78,14 @@ X_train_svm = np.array(df_X_train_svm)
 X_test_svm = np.array(df_X_test_svm)
 
 # Hinge loss function
-def compute_cost(W, X, y, regul_strength=1e5, rbf_kernel=False, sigma=None):
+def compute_cost(W, X, y, regul_strength=1e5, rbf_kernel=False, sigma=None, b=None):
     n = X.shape[0]
     
-    b_vec = np.dot(X[:, -1], W[-1])
+    # b_vec = np.dot(X[:, -1], W[-1])
     
     if rbf_kernel:
         # Separate b
-        distances = 1 - np.multiply(y, (rbf(W[:-1], X[:, :-1], sigma) + b_vec))
+        distances = 1 - y * (rbf(W, X, sigma) + b)
     else:
         distances = 1 - y * np.dot(X, W)
     
@@ -94,19 +94,23 @@ def compute_cost(W, X, y, regul_strength=1e5, rbf_kernel=False, sigma=None):
     
     # calculate cost
     if rbf_kernel:
-        cost = 1 / 2 * rbf(W[:-1], W[:-1], sigma) + hinge
+        cost = 1 / 2 * np.dot(W, W) + hinge
     else:
         cost = 1 / 2 * np.dot(W, W) + hinge
     return cost
 
 # calculate gradient of cost
-def calculate_cost_gradient(W, X_batch, y_batch, regul_strength=1e5):
+def calculate_cost_gradient(W, X_batch, y_batch, regul_strength=1e5, rbf_kernel=False, sigma=None, b=None):
     # if only one example is passed
     if type(y_batch) == np.float64:
         y_batch = np.asarray([y_batch])
         X_batch = np.asarray([X_batch])  # gives multidimensional array
     
-    distance = 1 - (y_batch * np.dot(X_batch, W))
+    if rbf_kernel:
+        distance = 1 - (y_batch * (rbf(X_batch, W, sigma) + b))
+    else:
+        distance = 1 - (y_batch * np.dot(X_batch, W))
+        
     dw = np.zeros(len(W))
     
     for ind, d in enumerate(distance):
@@ -119,7 +123,8 @@ def calculate_cost_gradient(W, X_batch, y_batch, regul_strength=1e5):
     dw = dw/len(y_batch)  # average
     return dw
 
-def sgd(X, y, max_iterations=2000, stop_criterion=0.01, learning_rate=1e-5, regul_strength=1e5, print_outcome=False, rbf_kernel=False, sigma=None):
+def sgd(X, y, max_iterations=2000, stop_criterion=0.01, learning_rate=1e-5, regul_strength=1e5,
+        print_outcome=False, rbf_kernel=False, sigma=None, b=None):
     # initialise zero weights
     weights = np.zeros(X.shape[1])
     nth = 0
@@ -131,13 +136,13 @@ def sgd(X, y, max_iterations=2000, stop_criterion=0.01, learning_rate=1e-5, regu
         # shuffle to prevent repeating update cycles
         np.random.shuffle([X, y])
         for ind, x in enumerate(X):
-            ascent = calculate_cost_gradient(weights, x, y[ind], regul_strength)
+            ascent = calculate_cost_gradient(weights, x, y[ind], regul_strength, rbf_kernel, sigma=sigma, b=b)
             weights = weights - (learning_rate * ascent)
     
         # convergence check on 2^n'th iteration
         if iteration==2**nth or iteration==max_iterations-1:
             # compute cost
-            cost = compute_cost(weights, X, y, regul_strength=1e5, rbf_kernel=rbf_kernel, sigma=sigma)
+            cost = compute_cost(weights, X, y, regul_strength=1e5, rbf_kernel=rbf_kernel, sigma=sigma, b=b)
             if print_outcome:
                 print("Iteration is: {}, Cost is: {}".format(iteration, cost))
             # stop criterion
@@ -149,11 +154,6 @@ def sgd(X, y, max_iterations=2000, stop_criterion=0.01, learning_rate=1e-5, regu
     
     return weights
 
-# train the model
-# NB using a v large C here
-## W = sgd(X_train_svm, Y_train_svm, max_iterations=2000, stop_criterion=0.01, learning_rate=1e-3, regul_strength=1e20, print_outcome=True)
-print("Training finished.")
-
 def sign(n):
     if n == 0:
         sgn = 1
@@ -162,7 +162,7 @@ def sign(n):
     return sgn
 
 # function to evaluate the mean accuracy
-def score(W, X, y, model_train_data, rbf_kernel = False, sigma = None, return_preds = False):
+def score(W, X, y, model_train_data, rbf_kernel = False, sigma = None, return_preds = False, b=None):
     model_X_train = model_train_data
     
     y_preds = np.array([])
@@ -172,7 +172,8 @@ def score(W, X, y, model_train_data, rbf_kernel = False, sigma = None, return_pr
     for i in range(X.shape[0]):
         if rbf_kernel:
             # Separate b   
-            y_pred = sign(rbf(X[i][:-1], W[:-1], sigma) + b_vec[i])
+            y_pred = sign((rbf(X[i], W, sigma) + b))
+            # print((rbf(X[i], W, sigma) + b))
         else:
             y_pred = sign(np.dot(X[i], W))
         
@@ -182,27 +183,239 @@ def score(W, X, y, model_train_data, rbf_kernel = False, sigma = None, return_pr
         return np.float(sum(y_preds == y)) / float(len(y)), y_preds
     else:
         return np.float(sum(y_preds == y)) / float(len(y))
+
+"""
+Linear
+"""
+
+# # train the model
+# # NB using a v large C here
+# W = sgd(X_train_svm, Y_train_svm, max_iterations=2000, stop_criterion=0.01, learning_rate=1e-3, regul_strength=1e20, print_outcome=True)
+# print("Training finished.")
     
-    
-## print("Accuracy on train set: {}".format(score(W, X_train_svm, Y_train_svm)))
-## print("Accuracy on test set: {}".format(score(W, X_test_svm, Y_test_svm)))
+# accuracy_train, y_preds_train = score(W, X_train_svm, Y_train_svm, X_train_svm, return_preds = True)
+# accuracy_test, y_preds_test = score(W, X_test_svm, Y_test_svm, X_train_svm, return_preds = True)
+
+# print("Accuracy on train set: {}".format(accuracy_train))
+# print("Accuracy on test set: {}".format(accuracy_test))
+
+"""
+rbf
+"""
 
 # definte the radial basis function
 def rbf(x, y, sigma):
     return np.exp(-(np.linalg.norm(x - y)**2)/(sigma))
 
-sigma_param = 0.01
+# 0.1 to 1.1
+sigma_param = 0.3
+b_param = -0.1
 
 # train the model
 # NB using a v large C here
-W_rbf = sgd(X_train_svm, Y_train_svm, max_iterations=2000,
-                   stop_criterion=0.01, learning_rate=1e-3, regul_strength=1e20,
-                   print_outcome=True, rbf_kernel=True, sigma=sigma_param)
+W_rbf = sgd(X_train, Y_train, max_iterations=500,
+                   stop_criterion=0.01, learning_rate=1e-8, regul_strength=1e5,
+                   print_outcome=True, rbf_kernel=True, sigma=sigma_param, b=b_param)
 print("Training finished.")
 
+print(W_rbf)
 
-print("RBF Accuracy on train set: {}".format(score(W_rbf, X_train_svm, Y_train_svm, X_train_svm, rbf_kernel=True, sigma=0.001)))
-print("RBF Accuracy on test set: {}".format(score(W_rbf, X_test_svm, Y_test_svm, X_train_svm, rbf_kernel=True, sigma=0.001)))
+accuracy_train_rbf, y_preds_train_rbf = score(W_rbf, X_train, Y_train_svm, X_train,
+                                              rbf_kernel=True, sigma=sigma_param, return_preds = True, b=b_param)
+accuracy_test_rbf, y_preds_test_rbf = score(W_rbf, X_test, Y_test_svm, X_train,
+                                            rbf_kernel=True, sigma=sigma_param, return_preds = True, b=b_param)
 
-_, y_preds_train_rbf = score(W_rbf, X_train_svm, Y_train_svm, X_train_svm, rbf_kernel=True, sigma=sigma_param, return_preds = True)
-_, y_preds_test_rbf = score(W_rbf, X_train_svm, Y_train_svm, X_train_svm, rbf_kernel=True, sigma=sigma_param, return_preds = True)
+print("RBF Accuracy on train set: {}".format(accuracy_train_rbf))
+print("RBF Accuracy on test set: {}".format(accuracy_test_rbf))
+
+print(np.unique(y_preds_train_rbf))
+print(np.unique(y_preds_test_rbf))
+
+
+"""
+grid search - 5 fold cross validation
+"""
+
+
+# Generate the folds
+def cross_val_split(data, num_folds):
+  fold_size = int(len(data) / num_folds)
+  data_perm = np.random.permutation(data)
+  folds = []
+  for k in range(num_folds):
+    folds.append(data_perm[k*fold_size:(k+1)*fold_size, :])
+
+  return folds
+
+# Aggregate the X and Y data into one array to be used for cross validation
+train = np.hstack((X_train, Y_train[:, np.newaxis]))
+
+folds = cross_val_split(train, 5)
+
+
+def cross_val_evaluate_svm(folds, sigma_param):
+    # create dictionaries
+    train_f1 = {1:[], 2:[], 3:[], 4:[], 5:[]}
+    val_f1 = {1:[], 2:[], 3:[], 4:[], 5:[]}
+    
+    for i in range(len(folds)):
+        
+        # print('Fold', i+1)
+        # define the training set (i.e. selecting all folds and deleting the one used for validation)
+        train_set = np.delete(np.asarray(folds).reshape(len(folds), folds[0].shape[0], folds[0].shape[1]), i, axis=0)
+        train_folds = train_set.reshape(len(train_set)*train_set[0].shape[0], train_set[0].shape[1])
+        X_train = train_folds[:,:-1]
+        y_train = train_folds[:, -1]
+        
+        # define the validation set
+        val_fold = folds[i]
+        X_val = val_fold[:,:-1]
+        y_val = val_fold[:, -1]
+        
+        # convert the 0s to -1s so the labels are 1 and -1
+        y_train_svm = y_train.copy()
+        y_train_svm[y_train_svm == 0] = -1
+        y_val_svm = y_val.copy()
+        y_val_svm[y_val_svm == 0] = -1
+        
+        # train the svm model
+        W_rbf = sgd(X_train, Y_train, max_iterations=500,
+                   stop_criterion=0.01, learning_rate=1e-8, regul_strength=1e5,
+                   print_outcome=False, rbf_kernel=True, sigma=sigma_param, b=-0.1)
+        
+        # obtain the accuracies and predictions and store in the appropriate variables
+        accuracy_train_rbf, y_preds_train_rbf = score(W_rbf, X_train, y_train_svm, X_train,
+                                              rbf_kernel=True, sigma=sigma_param, return_preds = True, b=-0.1)
+        
+        accuracy_val_rbf, y_preds_val_rbf = score(W_rbf, X_val, y_val_svm, X_train,
+                                            rbf_kernel=True, sigma=sigma_param, return_preds = True, b=-0.1)
+        
+        
+        # Stack the actual and the prediction vectors into one matrix
+        training_y_comparison_vec = np.vstack((y_train_svm, y_preds_train_rbf)).T
+        val_y_comparison__vec = np.vstack((y_val_svm, y_preds_val_rbf)).T
+        
+        # Calculate the F1 Scores
+        f1score_train = calculate_f1_score(training_y_comparison_vec)
+        f1score_val = calculate_f1_score(val_y_comparison__vec)
+
+        # Add them to the appropriate dictionaries
+        train_f1[i+1].append(f1score_train)
+        val_f1[i+1].append(f1score_val)
+        
+    return train_f1, val_f1
+
+def calculate_f1_score(v, get_ROC_data = False):
+    TP = sum(1 for val in (v == [1,1]).sum(axis=1) if val==2)
+    FN = sum(1 for val in (v == [1,-1]).sum(axis=1) if val==2)
+    TN = sum(1 for val in (v == [-1,-1]).sum(axis=1) if val==2)
+    FP = sum(1 for val in (v == [-1,1]).sum(axis=1) if val==2)
+    
+    #print(FN)
+    
+    if get_ROC_data:
+        TPR = TP / (TP + FN)
+        FPR = FP / (FP + TN)
+        return TPR, FPR
+    
+    else:
+        precision = TP / (TP + FP)
+        recall = TP / (TP + FN)
+    
+        f1score = 2*(precision * recall) / (precision+recall)
+    return f1score
+
+# vector to scan the sigmas
+sigma_vec = np.arange(3,21)/10
+
+
+# Create matrices to store f1 scores
+train_f1_mat = np.zeros(len(sigma_vec))
+val_f1_mat = np.zeros(len(sigma_vec))
+
+
+# Grid Search over max_features and max_depth keeping N_trees fixed at 5
+for i, sigma_param in enumerate(sigma_vec):
+    if (i+1)%2 == 0:
+        print("Loop: " + str(i+1)+ "/" + str(len(sigma_vec)))
+    train_f1, val_f1 = cross_val_evaluate_svm(folds, sigma_param)
+    print(val_f1)
+    mean_train_f1 = np.mean([train_f1[k][0] for k in range(1,6)])
+    mean_val_f1 = np.mean([val_f1[k][0] for k in range(1,6)])
+        
+    train_f1_mat[i] = mean_train_f1
+    val_f1_mat[i] = mean_val_f1
+    
+optimal_index = np.where(val_f1_mat == val_f1_mat.max())
+optimal_sigma = sigma_vec[optimal_index[0][0]]
+
+# Retrain the model using the optimal sigma
+b_param = -0.1
+
+W_rbf = sgd(X_train, Y_train, max_iterations=500,
+                   stop_criterion=0.01, learning_rate=1e-8, regul_strength=1e5,
+                   print_outcome=True, rbf_kernel=True, sigma=optimal_sigma, b=b_param)
+print("Training finished.")
+
+print(W_rbf)
+
+accuracy_train_rbf, y_preds_train_rbf = score(W_rbf, X_train, Y_train_svm, X_train,
+                                              rbf_kernel=True, sigma=optimal_sigma, return_preds = True, b=b_param)
+accuracy_test_rbf, y_preds_test_rbf = score(W_rbf, X_test, Y_test_svm, X_train,
+                                            rbf_kernel=True, sigma=optimal_sigma, return_preds = True, b=b_param)
+
+print("RBF Accuracy on train set: {}".format(accuracy_train_rbf))
+print("RBF Accuracy on test set: {}".format(accuracy_test_rbf))
+
+print(np.unique(y_preds_train_rbf))
+print(np.unique(y_preds_test_rbf))
+
+# Compare Accuracies
+#svm_accuracies = np.array([[accuracy_train, accuracy_test],[accuracy_train_rbf, accuracy_test_rbf]])
+#svm_accuracies_df = pd.DataFrame(svm_accuracies, columns = ["Training Accuracy", "Test Accuracy"], index = ["Standard Linear", "RBF kernel"])
+
+"""
+2.3.2
+"""
+# use the same sigma_vec as above
+
+# Create matrices to store the TPR and the TNR
+TPR_mat = np.zeros(len(sigma_vec))
+FPR_mat = np.zeros(len(sigma_vec))
+
+for i, sigma_param in enumerate(sigma_vec):
+    if (i+1)%2 == 0:
+        print("Loop: " + str(i+1)+ "/" + str(len(sigma_vec)))
+        
+    # train the svm model
+    W_rbf = sgd(X_test, Y_test_svm, max_iterations=500,
+               stop_criterion=0.01, learning_rate=1e-8, regul_strength=1e5,
+               print_outcome=False, rbf_kernel=True, sigma=sigma_param, b=-0.1)
+    
+    accuracy_test_rbf, y_preds_test_rbf = score(W_rbf, X_test, Y_test_svm, X_train,
+                                        rbf_kernel=True, sigma=sigma_param, return_preds = True, b=-0.1)
+    
+    # Stack the actual and the prediction vectors into one matrix
+    test_y_comparison__vec = np.vstack((Y_test_svm, y_preds_test_rbf)).T
+    
+    # Obtain the TPR and FPR
+    TPR, FPR = calculate_f1_score(test_y_comparison__vec, get_ROC_data = True)
+    
+    TPR_mat[i] = TPR
+    FPR_mat[i] = FPR
+    
+
+plt.plot(FPR_mat, TPR_mat)
+plt.plot((min(FPR_mat),max(TPR_mat)),(min(FPR_mat),max(TPR_mat)),color='red',linewidth=2,linestyle='--')
+plt.xlabel("FPR")
+plt.ylabel("TPR")
+plt.title("ROC curve")
+plt.plot(FPR_mat[optimal_index], TPR_mat[optimal_index],'bo') 
+arrow_properties = dict(
+    facecolor="black", width=0.5,
+    headwidth=4, shrink=0.1)
+plt.annotate(
+    "Optimal Kernel SVM", xy=(FPR_mat[optimal_index], TPR_mat[optimal_index]),
+    xytext=(0.35, 0.1),
+    arrowprops=arrow_properties)
+plt.show()
