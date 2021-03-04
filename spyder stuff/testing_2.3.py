@@ -2,6 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 
+np.random.seed(1024)
+
 # import training set
 test_data = pd.read_csv('./classification_test.csv', header=None)
 train_data = pd.read_csv('./classification_train.csv', header=None)
@@ -188,16 +190,16 @@ def score(W, X, y, model_train_data, rbf_kernel = False, sigma = None, return_pr
 Linear
 """
 
-# # train the model
-# # NB using a v large C here
-# W = sgd(X_train_svm, Y_train_svm, max_iterations=2000, stop_criterion=0.01, learning_rate=1e-3, regul_strength=1e20, print_outcome=True)
-# print("Training finished.")
-    
-# accuracy_train, y_preds_train = score(W, X_train_svm, Y_train_svm, X_train_svm, return_preds = True)
-# accuracy_test, y_preds_test = score(W, X_test_svm, Y_test_svm, X_train_svm, return_preds = True)
+# train the model
+# NB using a v large C here
+W = sgd(X_train_svm, Y_train_svm, max_iterations=2000, stop_criterion=0.01, learning_rate=1e-3, regul_strength=1e20, print_outcome=True)
+print("Training finished.")
 
-# print("Accuracy on train set: {}".format(accuracy_train))
-# print("Accuracy on test set: {}".format(accuracy_test))
+accuracy_train, y_preds_train = score(W, X_train_svm, Y_train_svm, X_train_svm, return_preds = True)
+accuracy_test, y_preds_test = score(W, X_test_svm, Y_test_svm, X_train_svm, return_preds = True)
+
+print("Accuracy on train set: {}".format(accuracy_train))
+print("Accuracy on test set: {}".format(accuracy_test))
 
 """
 rbf
@@ -371,8 +373,8 @@ print(np.unique(y_preds_train_rbf))
 print(np.unique(y_preds_test_rbf))
 
 # Compare Accuracies
-#svm_accuracies = np.array([[accuracy_train, accuracy_test],[accuracy_train_rbf, accuracy_test_rbf]])
-#svm_accuracies_df = pd.DataFrame(svm_accuracies, columns = ["Training Accuracy", "Test Accuracy"], index = ["Standard Linear", "RBF kernel"])
+svm_accuracies = np.array([[accuracy_train, accuracy_test],[accuracy_train_rbf, accuracy_test_rbf]])
+svm_accuracies_df = pd.DataFrame(svm_accuracies, columns = ["Training Accuracy", "Test Accuracy"], index = ["Standard Linear", "RBF kernel"])
 
 """
 2.3.2
