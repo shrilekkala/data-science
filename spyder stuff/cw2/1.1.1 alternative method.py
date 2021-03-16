@@ -1,10 +1,38 @@
 import numpy as np
+import tensorflow as tf
 import matplotlib.pyplot as plt
 import time
 
 """""""""""""""
 Question 1.1.1
 """""""""""""""
+
+def load_data ():
+    (x_train, y_train), (x_val, y_val) = tf.keras.datasets.cifar10.load_data()
+    x_train = x_train.astype('float32') / 255
+    x_val = x_val.astype('float32') / 255
+    
+    # convert labels to categorical samples
+    y_train = tf.keras.utils.to_categorical(y_train, num_classes=10)
+    y_val = tf.keras.utils.to_categorical(y_val, num_classes=10)
+    return ((x_train, y_train), (x_val, y_val))
+
+(x_train, y_train), (x_val, y_val) = load_data()
+
+print(x_train.shape)
+print(y_train.shape)
+print(x_val.shape)
+print(y_val.shape)
+
+"""
+Section 1.1
+"""
+# Convert the data into 2D numpy arrays
+X_train_np = np.reshape(np.array(x_train), (50000, 3072), order='C').T
+X_test_np = np.reshape(np.array(x_val), (10000, 3072), order='C').T
+y_train_np = np.array(y_train).T
+# Convert the vector of labels of 0s and 1s into an integer between 0 and 9
+y_test_np = np.argmax(np.array(y_val), axis = 1)
 
 
 """
@@ -197,20 +225,13 @@ y_train = oneHotEncoding(read_idx(path+'/train-labels-idx1-ubyte'))
 X_test = imageProcess(read_idx(path+'/t10k-images-idx3-ubyte'))
 y_test = read_idx(path+'/t10k-labels-idx1-ubyte')
 
-#### General Hyperparameters
-
-# Number of descriptors
-D = X_train.shape[0]
-
-# Set the number of neurons per hidden layer
-num_h = 400
 
 # Random Seed
 np.random.seed(7)
 
 
 # Initialise the set of parameters
-def initial_parameters():
+def initial_parameters(num_h, D):
     parameters = {'W0': np.random.randn(num_h, D) * 0.02,
                   'b0': np.zeros((num_h, 1)),
                   
@@ -243,15 +264,22 @@ def MLP(num_epochs, l_rate):
     # Obtain the start time  
     start = time.time()
     
+    # Number of descriptors
+    D = X_train_np.shape[0]
+    
+    # Set the number of neurons per hidden layer
+    num_h = 400
+    
     # Get the initialised set of parameters
-    Params = initial_parameters()
+    Params = initial_parameters(num_h, D)
+    
     
     ## Loop over the epochs
     for i in range(num_epochs):
         
         # Obtain new randomly sampled batches
         ## Should return 469 batches (for 60,000 data points)
-        batches = databatch(128, X_train.T, y_train.T)
+        batches = databatch(128, X_train_np.T, y_train_np.T)
         
         # Loop over each batch
         for x_batch, y_batch in batches:
@@ -271,8 +299,8 @@ def MLP(num_epochs, l_rate):
             Params = SGD_updater(Params, gradient, l_rate)
         
         # Compute the accuracy
-        y_hat = classify(X_test, Params)
-        acc = sum(y_hat == y_test)*1/len(y_test)
+        y_hat = classify(X_test_np, Params)
+        acc = sum(y_hat == y_test_np)*1 / len(y_test_np)
         
         # Store the the metrics in the lists
         Losses.append(ce_loss)
@@ -295,7 +323,7 @@ print("Final Loss           :", Losses[-1])
 print('Final Accuracy       :', Accuracies[-1])
 print('Total Training Time  : ', Train_time)
 
-    
+
 """
 plt.plot(Losses)
 plt.plot(Accuracies)
