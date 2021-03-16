@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import time
 
 """""""""""""""
 Question 1.1.1
@@ -59,7 +60,7 @@ def output_error(y_batch, a2):
     return a2 - y_batch
 
 ## Forward and Backward Pass functions
-def forward_pass(X, parameters, Tanh):
+def forward_pass(X, parameters):
     # create a dictionary to store the pre and post activations
     forwardPass = {}
     
@@ -85,7 +86,7 @@ def forward_pass(X, parameters, Tanh):
     
     return forwardPass
     
-def back_propagate(X, y, forwardPass, parameters, dTanh):
+def back_propagate(X, y, forwardPass, parameters):
     M = X.shape[1]
     
     # create a dictionary to store the gradients
@@ -148,21 +149,21 @@ def SGD_updater(parameters, gradient, learning_rate):
 
 ## Create a function to classify a set of inputs using the model
 
-def classify(X, parameters, tanh):
+def classify(X, parameters):
     a1 = dense(X, parameters['W0'], parameters['b0'])
-    h1 = tanh(a1)
+    h1 = Tanh(a1)
     
     a2 = dense(h1, parameters['W1'], parameters['b1'])
-    h2 = tanh(a2)
+    h2 = Tanh(a2)
     
     a3 = dense(h2, parameters['W2'], parameters['b2'])
-    h3 = tanh(a3)
+    h3 = Tanh(a3)
     
     a4 = dense(h3, parameters['W3'], parameters['b3'])
-    h4 = tanh(a4)
+    h4 = Tanh(a4)
     
     a5 = dense(h4, parameters['W4'], parameters['b4'])
-    h5 = tanh(a5)
+    h5 = Tanh(a5)
     
     a6 = dense(h5, parameters['W5'], parameters['b5'])
     h6 = SoftMax(a6)
@@ -172,7 +173,6 @@ def classify(X, parameters, tanh):
     
 import struct
 import os
-from datetime import datetime
 
 path = os.path.join(os.path.expanduser('~'), 'Downloads', 'MNIST')
 def read_idx(filename):
@@ -198,88 +198,105 @@ X_test = imageProcess(read_idx(path+'/t10k-images-idx3-ubyte'))
 y_test = read_idx(path+'/t10k-labels-idx1-ubyte')
 
 #### General Hyperparameters
-m=128 #batch size
-n_x = X_train.shape[0]
-n_h = 400 #neurons in hidden layers
-eta = 0.01
+
+# Number of descriptors
+D = X_train.shape[0]
+
+# Set the number of neurons per hidden layer
+num_h = 400
+
+# Random Seed
 np.random.seed(7)
-epoch = 40
 
 
-#######tanh SECTION ############
-tanhParams = {'W0': np.random.randn(n_h, n_x)* np.sqrt(1. / n_x),
-                 'b0': np.zeros((n_h, 1)),
-                 
-                 'W1': np.random.randn(n_h, n_h)* np.sqrt(1. / n_h),
-                 'b1': np.zeros((n_h, 1)),
-                
-                 'W2': np.random.randn(n_h, n_h)* np.sqrt(1. / n_h),
-                 'b2': np.zeros((n_h, 1)),
-                 
-                 'W3': np.random.randn(n_h, n_h)* np.sqrt(1. / n_h),
-                 'b3': np.zeros((n_h, 1)),
-                 
-                 'W4': np.random.randn(n_h, n_h)* np.sqrt(1. / n_h),
-                 'b4': np.zeros((n_h, 1)),
-                 
-                 'W5': np.random.randn(10, n_h)* np.sqrt(1. / n_h),
-                 'b5': np.zeros((10, 1)),
-                 }
-
-# Create lists to store accuracies and losses over the epochs
-Accuracies = []
-Losses = []
-
-## Should return 469 batches
-batches = databatch(128, X_train.T, y_train.T)
-
-start = datetime.now()
-
-## Loop over the epochs
-for i in range(epoch):
+# Initialise the set of parameters
+def initial_parameters():
+    parameters = {'W0': np.random.randn(num_h, D) * 0.02,
+                  'b0': np.zeros((num_h, 1)),
+                  
+                  'W1': np.random.randn(num_h, num_h) * 0.05,
+                  'b1': np.zeros((num_h, 1)),
+                    
+                  'W2': np.random.randn(num_h, num_h) * 0.05,
+                  'b2': np.zeros((num_h, 1)),
+                     
+                  'W3': np.random.randn(num_h, num_h) * 0.05,
+                  'b3': np.zeros((num_h, 1)),
+                     
+                  'W4': np.random.randn(num_h, num_h) * 0.05,
+                  'b4': np.zeros((num_h, 1)),
+                     
+                  'W5': np.random.randn(10, num_h) * 0.05,
+                  'b5': np.zeros((10, 1))}
     
-    # Obtain new randomly sampled batches
-    batches = databatch(128, X_train.T, y_train.T)
+    return parameters
+
+
+
+## Create a function to train the MLP with epochs and learning rates as hyperparameters
+def MLP(num_epochs, l_rate):
     
-    # Loop over each batch
-    for x_batch, y_batch in batches:
-        X = x_batch.T
-        y = y_batch.T
+    # Create lists to store accuracies and losses over the epochs
+    Accuracies = []
+    Losses = []
     
-        # Forward Pass
-        forwardPass = forward_pass(X, tanhParams, Tanh)
+    # Obtain the start time  
+    start = time.time()
+    
+    # Get the initialised set of parameters
+    Params = initial_parameters()
+    
+    ## Loop over the epochs
+    for i in range(num_epochs):
         
-        # Calculate the loss
-        ce_loss = CrossEntropyLoss(y, forwardPass['h6'])
+        # Obtain new randomly sampled batches
+        ## Should return 469 batches (for 60,000 data points)
+        batches = databatch(128, X_train.T, y_train.T)
         
-        # Back Propagate to find the gradients
-        gradient = back_propagate(X, y, forwardPass, tanhParams, dTanh)
+        # Loop over each batch
+        for x_batch, y_batch in batches:
+            X = x_batch.T
+            y = y_batch.T
+        
+            # Forward Pass
+            forwardPass = forward_pass(X, Params)
+            
+            # Calculate the loss
+            ce_loss = CrossEntropyLoss(y, forwardPass['h6'])
+            
+            # Back Propagate to find the gradients
+            gradient = back_propagate(X, y, forwardPass, Params)
+        
+            # Update the Weights according to SGD
+            Params = SGD_updater(Params, gradient, l_rate)
+        
+        # Compute the accuracy
+        y_hat = classify(X_test, Params)
+        acc = sum(y_hat == y_test)*1/len(y_test)
+        
+        # Store the the metrics in the lists
+        Losses.append(ce_loss)
+        Accuracies.append(acc)
+        
+        # Print the progress
+        if i%5 == 4:
+            print("Epoch " + str(i+1) + "/ 40")
     
-        # Update the Weights according to SGD
-        tanhParams=SGD_updater(tanhParams, gradient, eta)
+    # Calculate the time taken
+    time_diff = time.time() - start
+    train_time = time.strftime("%H:%M:%S", time.gmtime(time_diff))
     
-    # Compute the accuracy
-    y_hat = classify(X_test, tanhParams, Tanh)
-    acc = sum(y_hat==y_test)*1/len(y_test)
-    
-    # Store the the metrics in the lists
-    Losses.append(ce_loss)
-    Accuracies.append(acc)
-    
-    # Print the progress
-    if i%5 == 4:
-        print("Epoch " + str(i+1) + "/ 40")
-    
-    
-difference = datetime.now() - start
-print("Final cost:", ce_loss)
-print('Time to train:', difference)
+    # Return the metrics
+    return Losses, Accuracies, train_time
 
-y_hat = classify(X_test, tanhParams, Tanh)
+Losses, Accuracies, Train_time = MLP(40, 0.01)
 
+print("Final Loss           :", Losses[-1])
+print('Final Accuracy       :', Accuracies[-1])
+print('Total Training Time  : ', Train_time)
 
-print('Accuracy:',sum(y_hat==y_test)*1/len(y_test))
     
-
-# plt.plot(Losses)
-# plt.plot(Accuracies)
+"""
+plt.plot(Losses)
+plt.plot(Accuracies)
+"""
