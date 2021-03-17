@@ -50,13 +50,15 @@ def forward(X,params,activation):
 
 def back(X, y,forwardPass, params,dActivation):
     m = X.shape[1]
+    print(m)
     gradient = {}
     gradient['dZ2'] = forwardPass['A2'] - y
     gradient['dW2'] = (1./m) * np.matmul(gradient['dZ2'], forwardPass['A1'].T)
-    gradient['db2'] = (1./m) * np.sum(gradient['dZ2'], axis=1, keepdims=True)
+    gradient['db2'] = np.mean(gradient['dZ2'], axis=1, keepdims=True)
     gradient['dA1'] = np.matmul(params['W2'].T, gradient['dZ2'])
     gradient['dZ1'] = gradient['dA1'] * dActivation(forwardPass['Z1'])
     gradient['dW1'] = (1./m) * np.matmul(gradient['dZ1'], X.T)
+    print(np.matmul(gradient['dZ1'], X.T).shape)
     gradient['db1'] = (1./m) * np.sum(gradient['dZ1'])
     return gradient
 
@@ -88,7 +90,7 @@ n_h = 100
 eta = 1
 lamda = 2
 np.random.seed(7)
-epoch = 500
+epoch = 50
 
 
 #######tanh SECTION ############

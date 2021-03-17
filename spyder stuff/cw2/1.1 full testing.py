@@ -204,7 +204,7 @@ def get_preds(X, parameters):
 
 
 # Random Seed
-np.random.seed(7)
+np.random.seed(1024)
 
 
 # Initialise the set of parameters
@@ -245,7 +245,7 @@ def MLP(num_epochs, l_rate):
     D = X_train_np.shape[0]
     
     # Set the number of neurons per hidden layer
-    num_h = 400
+    num_h = 20
     
     # Get the initialised set of parameters
     Params = initial_parameters(num_h, D)
@@ -256,7 +256,7 @@ def MLP(num_epochs, l_rate):
         
         # Obtain new randomly sampled batches
         ## Should return 391 batches (for 50,000 data points)
-        batches = databatch(128, X_train_np.T, y_train_np.T)
+        batches = databatch(500, X_train_np.T, y_train_np.T)
         
         # Loop over each batch
         for x_batch, y_batch in batches:
@@ -304,7 +304,7 @@ def MLP(num_epochs, l_rate):
 
 # Store the metrics in a dictionary
 MLP_Metrics = {}
-MLP_Metrics["40, 0.01"] = MLP(40, 0.01)
+MLP_Metrics["40, 0.01"] = MLP(10, 0.01)
 
 print("Final Validation Loss           :", MLP_Metrics["40, 0.01"][0][-1][1])
 print('Final Validation Accuracy       :', MLP_Metrics["40, 0.01"][1][-1][1])
