@@ -146,11 +146,11 @@ for k in range(2, 11):
 optimal_idx = {}
 optimal_clusters = []
 optimal_W = []
-average_W = []
+## average_W = []
 for k in range(2, 11):
     optimal_idx[k] = np.argmin(k_means_all[k][1])
     optimal_W.append(k_means_all[k][1][optimal_idx[k]])
-    average_W.append(np.mean(k_means_all[k][1]))
+    ## average_W.append(np.mean(k_means_all[k][1]))
     
 plt.plot(range(2, 11), optimal_W, '-x')
 plt.title("Average Within-Cluster Distance vs k [k Means] 1")
@@ -159,10 +159,12 @@ plt.ylabel("W(C)")
 plt.grid()
 plt.show()
 
+"""
 plt.plot(range(2, 11), average_W, '-x')
 plt.title("Average Within-Cluster Distance vs k [k Means] 2")
 plt.xlabel("k")
 plt.ylabel("W(C)")
 plt.grid()
 plt.show()
+"""
 
