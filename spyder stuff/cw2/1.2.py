@@ -21,8 +21,8 @@ print(x_val.shape)
 print(y_val.shape)
 
 ## One-Hot labels to integer labels
-y_train_labels = tf.argmax(y_train, axis=1)
-y_val_labels = tf.argmax(y_val, axis=1)
+y_train_labels = np.argmax(y_train, axis=1)
+y_val_labels = np.argmax(y_val, axis=1)
 
 ## load the data into tf.data.Dataset objects
 train_dataset = tf.data.Dataset.from_tensor_slices((x_train, y_train))
@@ -35,7 +35,7 @@ val_dataset_batched = val_dataset.batch(batch_size)
 train_dataset_batched.element_spec
 
 # Load the list of label names
-classes = ['airplane', 'automobile', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck']
+classes = ['plane', 'vehicle', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck']
 
 # Plot a randomly selected example from each class
 n_rows, n_cols = 2, 5
@@ -70,10 +70,9 @@ from tensorflow.keras.layers import Dense, Conv2D, MaxPool2D, Flatten
 model_1 = Sequential([
      Conv2D(32, (3, 3), activation='relu', input_shape=(32, 32, 3)),
      MaxPool2D((2, 2)),
-     Conv2D(32, (3, 3), activation='relu'),
-     MaxPool2D((2, 2)),
      Conv2D(64, (3, 3), activation='relu'),
      MaxPool2D((2, 2)),
+     Conv2D(64, (3, 3), activation='relu'),
      Flatten(),
      Dense(64, activation='relu'),
      Dense(10, activation='softmax')])
@@ -89,7 +88,7 @@ def train_CNN(model, callback=None):
     
     model.compile(optimizer=sgd, loss=loss_fn, metrics=['categorical_accuracy'])
     
-    # Train the model using the training set
+    # Train the model using the training set (adding a callback if given)
     if callback:
         history = model.fit(train_dataset_batched, epochs=40, validation_data=val_dataset_batched, verbose=0,
                             callbacks = [callback])
@@ -100,6 +99,7 @@ def train_CNN(model, callback=None):
     time_diff = time.time() - start
     train_time = time.strftime("%H:%M:%S", time.gmtime(time_diff))
     
+    # Return the metrics
     return history, train_time
 
 history_1, train_time_1 = train_CNN(model_1)
@@ -153,10 +153,9 @@ from tensorflow.keras import regularizers
 model_2 = Sequential([
      Conv2D(32, (3, 3), kernel_regularizer=regularizers.l2(5e-3), activation='relu', input_shape=(32, 32, 3)),
      MaxPool2D((2, 2)),
-     Conv2D(32, (3, 3), kernel_regularizer=regularizers.l2(5e-3), activation='relu'),
-     MaxPool2D((2, 2)),
      Conv2D(64, (3, 3), kernel_regularizer=regularizers.l2(5e-3), activation='relu'),
      MaxPool2D((2, 2)),
+     Conv2D(64, (3, 3), kernel_regularizer=regularizers.l2(5e-3), activation='relu'),
      Flatten(),
      Dense(64, activation='relu'),
      Dense(10, activation='softmax')])
@@ -180,10 +179,9 @@ from tensorflow.keras.layers import Dropout
 model_3= Sequential([
      Conv2D(32, (3, 3), activation='relu', input_shape=(32, 32, 3)),
      MaxPool2D((2, 2)),
-     Conv2D(32, (3, 3), activation='relu'),
-     MaxPool2D((2, 2)),
      Conv2D(64, (3, 3), activation='relu'),
      MaxPool2D((2, 2)),
+     Conv2D(64, (3, 3), activation='relu'),
      Flatten(),
      Dense(64, activation='relu'),
      Dropout(0.5),
@@ -203,10 +201,9 @@ earlystopping = tf.keras.callbacks.EarlyStopping(monitor = 'val_loss', patience=
 model_4 = Sequential([
      Conv2D(32, (3, 3), activation='relu', input_shape=(32, 32, 3)),
      MaxPool2D((2, 2)),
-     Conv2D(32, (3, 3), activation='relu'),
-     MaxPool2D((2, 2)),
      Conv2D(64, (3, 3), activation='relu'),
      MaxPool2D((2, 2)),
+     Conv2D(64, (3, 3), activation='relu'),
      Flatten(),
      Dense(64, activation='relu'),
      Dense(10, activation='softmax')])
@@ -214,7 +211,6 @@ model_4 = Sequential([
 model_4.summary()
 
 history_4, train_time_4 = train_CNN(model_4, callback = earlystopping)
-
 print('Total Training Time  : ', train_time_4)
 
 CNN_plots(history_4, "Early Stopping")
@@ -222,31 +218,32 @@ CNN_plots(history_4, "Early Stopping")
 """
 Model Predictions
 """
+preds_1 = model_1.predict(x_val)
 
-# Get predictions from the model
-for images, labels in val_dataset_batched.take(1):
-    preds = model_1.predict(images)
+# Function to plot some example predictions and their categorical distributions
+def plot_examples(preds):
+    # preds should be in one-hot form
+    total_num_images = preds.shape[0]
+    
+    random_inx = np.random.choice(total_num_images, 4, replace=False)
+    random_preds = preds[random_inx, ...]
+    random_test_images = x_val[random_inx, ...]
+    random_test_labels = y_val_labels[random_inx]
+    
+    fig, axes = plt.subplots(4, 2, figsize=(16, 12))
+    fig.subplots_adjust(hspace=0.4, wspace=-0.2)
+    
+    for i, (prediction, image, label) in enumerate(zip(random_preds, random_test_images, random_test_labels)):
+        axes[i, 0].imshow(image)
+        axes[i, 0].get_xaxis().set_visible(False)
+        axes[i, 0].get_yaxis().set_visible(False)
+        axes[i, 0].set_title(f'{classes[label]}')
+        axes[i, 1].bar(classes, prediction)
+        axes[i, 1].set_xticks(np.arange(len(prediction)))
+        axes[i, 1].set_title(f"Categorical distribution. Model prediction: {classes[np.argmax(prediction)]}")
+    
+    plt.show()
+    return
 
-
-total_num_images = preds.shape[0]
-
-random_inx = np.random.choice(total_num_images, 4)
-random_preds = preds[random_inx, ...]
-random_test_images = images.numpy()[random_inx, ...]
-random_test_labels = labels.numpy()[random_inx, ...]
-
-fig, axes = plt.subplots(4, 2, figsize=(16, 12))
-fig.subplots_adjust(hspace=0.4, wspace=-0.2)
-
-for i, (prediction, image, label) in enumerate(zip(random_preds, random_test_images, random_test_labels)):
-    axes[i, 0].imshow(np.squeeze(image))
-    axes[i, 0].get_xaxis().set_visible(False)
-    axes[i, 0].get_yaxis().set_visible(False)
-    axes[i, 0].text(10., -1.5, f'{classes[label]}')
-    axes[i, 1].bar(np.arange(len(prediction)), prediction)
-    axes[i, 1].set_xticks(np.arange(len(prediction)))
-    axes[i, 1].set_title(f"Categorical distribution. Model prediction: {classes[np.argmax(prediction)]}")
-plt.show()
-
-
+plot_examples(preds_1)
 
