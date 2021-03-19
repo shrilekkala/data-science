@@ -23,7 +23,6 @@ for i in range(34):
     if true_split[i][1] == "Officer":
         true_split_np[i, 1] = 1
 
-
 # visualising the clusters
 plt.figure(figsize=(10,8))
 plt.scatter(feature_matrix[:,0], feature_matrix[:,4])
@@ -38,8 +37,11 @@ k = 5
 max_iter = 15
 
 # Distance matrix
-difference = feature_matrix[:, :, None] - feature_matrix[:, :, None].T
-D = np.sqrt((difference**2).sum(1))
+def distance_matrix(X):
+    difference = X[:, :, None] - X[:, :, None].T
+    D = np.sqrt((difference**2).sum(1))
+    return D
+D = distance_matrix(feature_matrix)
 
 def no_empty_labels(k, new_labels):
     # Find which clusters are empty
@@ -143,7 +145,7 @@ k_means_all = {}
 
 for k in range(2, 11):
     print("Loop k = " + str(k))
-    k_means_all[k] = k_means_100(feature_matrix, k, 15)
+    k_means_all[k] = k_means_100(feature_matrix, k, 50)
 
 # Find the index for the optimal clusters for each k
 # By finding index of the cluster which maximises W(C) for that k
@@ -232,12 +234,11 @@ average_CH_scores = []
 for k in range(2, 11):
     average_CH_scores.append(np.mean(CH_scores[k]))
 
-
 plt.plot(range(2, 11), average_CH_scores, '-x')
-#plt.title("Average Calinski-Harabasz Score vs k [k Means] 1")
+plt.title("Average Calinski-Harabasz Score vs k [k Means] 1")
 plt.xlabel("k")
 plt.ylabel("CH score")
-#plt.grid()
+plt.grid()
 plt.show()
 
 """
@@ -259,7 +260,16 @@ CH_rel_variance = np.var(CH_matrix, axis=1) / np.mean(CH_matrix, axis=1)
 # Plot them
 plt.plot(range(2, 11), W_rel_variance, '-o', label='W(C) variance')
 plt.plot(range(2, 11), CH_rel_variance, '-o', label='CH score variance')
-plt.title("Variances of different metrics of k Means Algorithm vs k")
+plt.title("Relative Variances of different metrics of k Means Algorithm vs k")
+plt.legend()
+plt.grid()
+plt.show()
+plt.show()
+
+# Plot them
+plt.semilogy(range(2, 11), W_rel_variance, '-o', label='W(C) variance')
+plt.semilogy(range(2, 11), CH_rel_variance, '-o', label='CH score variance')
+plt.title("Relative Variances of different metrics of k Means Algorithm vs k")
 plt.legend()
 plt.grid()
 plt.show()
@@ -269,7 +279,49 @@ plt.show()
 
 
 ## Test labels for plotting
-test_label = k_means_all[2][0][0]
+test_label = k_means_all[2][0][optimal_idx[2]]
 plt.figure(figsize=(8,6))
 plt.scatter(feature_matrix[:,0], feature_matrix[:,1], c=test_label)
 plt.title("1st Column vs 2nd Column of the Feature Matrix, k-Means with k=2")
+
+### Test 3D plot
+from mpl_toolkits.mplot3d import Axes3D
+import matplotlib.pyplot as plt
+
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
+
+x =feature_matrix[:,0]
+y =feature_matrix[:,1]
+z =feature_matrix[:,2]
+
+ax.scatter(x, y, z, c=test_label, marker='o')
+
+ax.set_xlabel('X Label')
+ax.set_ylabel('Y Label')
+ax.set_zlabel('Z Label')
+
+plt.show()
+
+###
+
+fig = plt.figure(figsize=(6,6))
+
+ax = Axes3D(fig) 
+
+x = feature_matrix[:,0]
+y = feature_matrix[:,1]
+z = feature_matrix[:,-1]
+
+index_0 = np.where(test_label == 0)
+index_1 = np.where(test_label == 1)
+
+ax.set_title("3D scatter plot of data points, k-Means with k=2")
+ax.scatter(x[index_0], y[index_0], z[index_0], color = 'g', marker='^')
+ax.scatter(x[index_1], y[index_1], z[index_1], color = 'm', marker='o')
+
+ax.set_xlabel('Feature 1')
+ax.set_ylabel('Feature 2')
+ax.set_zlabel('Feature 100')
+ax.view_init(20, 30) 
+plt.show()
