@@ -2,6 +2,7 @@
 import numpy as np
 import collections
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 import csv
 
 np.random.seed(1024)
@@ -285,23 +286,6 @@ plt.scatter(feature_matrix[:,0], feature_matrix[:,1], c=test_label)
 plt.title("1st Column vs 2nd Column of the Feature Matrix, k-Means with k=2")
 
 ### Test 3D plot
-from mpl_toolkits.mplot3d import Axes3D
-import matplotlib.pyplot as plt
-
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
-
-x =feature_matrix[:,0]
-y =feature_matrix[:,1]
-z =feature_matrix[:,2]
-
-ax.scatter(x, y, z, c=test_label, marker='o')
-
-ax.set_xlabel('X Label')
-ax.set_ylabel('Y Label')
-ax.set_zlabel('Z Label')
-
-plt.show()
 
 ###
 
