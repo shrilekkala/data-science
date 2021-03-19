@@ -26,7 +26,7 @@ for i in range(34):
 
 # visualising the clusters
 plt.figure(figsize=(10,8))
-plt.scatter(feature_matrix[:,0], feature_matrix[:,1])
+plt.scatter(feature_matrix[:,0], feature_matrix[:,4])
 plt.show()
 
 """
@@ -266,3 +266,10 @@ plt.show()
 plt.show()
 
 # Robustness wouldn't show much variance etc
+
+
+## Test labels for plotting
+test_label = k_means_all[2][0][0]
+plt.figure(figsize=(8,6))
+plt.scatter(feature_matrix[:,0], feature_matrix[:,1], c=test_label)
+plt.title("1st Column vs 2nd Column of the Feature Matrix, k-Means with k=2")
