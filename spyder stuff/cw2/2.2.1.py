@@ -134,7 +134,8 @@ plt.ylabel("Proportion of Explained Variance")
 plt.grid()
 plt.show()
 
-## Cumulative
+## Cumulative Explained Variance
+"""
 cumulative_explained_variances = np.cumsum(explained_variances[10])
 plt.plot(range(1, 11), cumulative_explained_variances, marker='.', label="Cumulative Explained Variance")
 # plt.plot(range(1, 11), cumulative_explained_variances, marker='o', label="Cumulative")
@@ -145,10 +146,38 @@ plt.grid()
 plt.show()
 ## first 2 components contain approximately 50% of the variance
 ## while you need around 50 components to describe close to 90% of the variance
+"""
+
+
+
+## As we normalised F, (I - 1/N 1 1.T)F = F (see page 16 of slides)
+## So F.T F is exactly the sample covariance matrix Cx
+## The eigenvectors of Cx are the basis used in PCA, i.e. principal components (page 10)
+
+## So when we take the spectral decomposition of F^T F, we recover the variances of the components of PCA
+## We can then plot these variances cumulatively as a proportion of the total variance:
 
 # spectral decomposition of F^T F
 F = normalized_feature_matrix
 all_e_vals, all_e_vecs = np.linalg.eig(F.T @ F)
+## Cumulative eigenvalue sums
+plt.plot(range(1, 101),(abs(np.cumsum(all_e_vals)) / abs(all_e_vals.sum()))[:100], marker='.')
+plt.title("Cumulative Graph of Proportional Eigenvalues of F^T F")
+plt.xlabel("Eigenvalue Number (ordered in decreasing magnitude)")
+plt.ylabel("Cumulative Sum")
+plt.grid()
+plt.show()    
 
+## Just examine the first 20
+plt.plot(range(1, 21),(abs(np.cumsum(all_e_vals)) / abs(all_e_vals.sum()))[:20], marker='.')
+plt.title("Cumulative Graph of Proportional Eigenvalues of F^T F")
+plt.xlabel("Eigenvalue Number (ordered in decreasing magnitude)")
+plt.ylabel("Cumulative Sum")
+plt.gca().set_xticks(np.arange(0,21))
+plt.grid()
+plt.show()    
 
-F_mean = np.mean(feature_matrix, axis = 0)
+## first 2 components contain approximately 50% of the variance
+## and you only need around 11 of the 100 components to describe over 90% of the variance
+
+## (We also know that in SVD the singular values of F are the square root of the e/vals of F^T F = Cx)
