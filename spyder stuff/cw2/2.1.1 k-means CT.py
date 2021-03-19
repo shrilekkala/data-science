@@ -243,6 +243,7 @@ plt.show()
 """
 2.1.3
 """
+
 # We have 100 CH scores and 100 W(C) values for each k
 # Create 9 x 100 matrix of the W(C) scores
 W_matrix = np.zeros((9, 100))
