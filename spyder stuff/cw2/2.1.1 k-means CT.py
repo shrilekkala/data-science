@@ -29,6 +29,10 @@ plt.figure(figsize=(10,8))
 plt.scatter(feature_matrix[:,0], feature_matrix[:,1])
 plt.show()
 
+"""
+2.1.1
+"""
+
 # parameters
 k = 5
 max_iter = 15
@@ -168,3 +172,96 @@ plt.grid()
 plt.show()
 """
 
+"""
+2.1.2
+"""
+
+def total_sum_squares(X):
+    centroid = np.mean(X, axis=0, keepdims=True)
+    
+    tss = np.sum(np.square(np.linalg.norm(X - centroid, axis = 1)))
+    
+    return tss
+
+def within_sum_squares(X, labels):
+    k = len(np.unique(labels))
+    X_labels = np.append(X, labels.reshape(-1,1), axis=1)
+    
+    ssw = 0
+    
+    for i in range(k):
+        
+        # get all the elements in cluster k
+        cluster_elements = np.array([x for x in X_labels if x[-1]==i])[:,:-1]
+        
+        # find the within cluster total sum of squares and add it to the total
+        ssw += total_sum_squares(cluster_elements)
+    
+    return ssw
+
+def CH_score(X, labels):
+    k = len(np.unique(labels))
+    N = X.shape[0]
+    
+    # Within sum of squares
+    ssw = within_sum_squares(X, labels)
+    
+    # Between sum of squares
+    ssb = total_sum_squares(X) - ssw
+    
+    # CH score
+    score = ssb / ssw * (N - k) / (k - 1)
+    
+    return score
+
+# Measure the CH score for each of the 100 iterations and store them in a dictionary
+CH_scores = {}
+
+# k loops
+for k in range(2, 11):
+    label_list, _ = k_means_all[k]
+
+    print(k)
+    CH_scores[k] = []
+        
+    # 100 loops
+    for labels in label_list:
+        CH_scores[k].append(CH_score(feature_matrix, labels))
+        
+average_CH_scores = []
+for k in range(2, 11):
+    average_CH_scores.append(np.mean(CH_scores[k]))
+
+
+plt.plot(range(2, 11), average_CH_scores, '-x')
+#plt.title("Average Calinski-Harabasz Score vs k [k Means] 1")
+plt.xlabel("k")
+plt.ylabel("CH score")
+#plt.grid()
+plt.show()
+
+"""
+2.1.3
+"""
+# We have 100 CH scores and 100 W(C) values for each k
+# Create 9 x 100 matrix of the W(C) scores
+W_matrix = np.zeros((9, 100))
+CH_matrix = np.zeros((9, 100))
+for k in range(2, 11):
+    W_matrix[k-2, :] = k_means_all[k][1]
+    CH_matrix[k-2, :] = CH_scores[k]
+
+# Compute the RELATIVE variances of each of the metrics for a fixed k
+W_rel_variance = np.var(W_matrix, axis=1) / np.mean(W_matrix, axis=1)
+CH_rel_variance = np.var(CH_matrix, axis=1) / np.mean(CH_matrix, axis=1)
+
+# Plot them
+plt.plot(range(2, 11), W_rel_variance, '-o', label='W(C) variance')
+plt.plot(range(2, 11), CH_rel_variance, '-o', label='CH score variance')
+plt.title("Variances of different metrics of k Means Algorithm vs k")
+plt.legend()
+plt.grid()
+plt.show()
+plt.show()
+
+# Robustness wouldn't show much variance etc
