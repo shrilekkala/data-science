@@ -2,8 +2,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import csv
-import scipy as sc
-
 
 np.random.seed(1024)
 
@@ -54,7 +52,7 @@ def pca_function(X, k):
     # sorting the eigenvectors and eigenvalues from largest to smallest eigenvalue
     sorted_index = np.argsort(eigenvalues)[::-1]
     eigenvalues = eigenvalues[sorted_index]
-    eigenvectors = eigenvectors[:,sorted_index ]
+    eigenvectors = eigenvectors[:,sorted_index]
 
     # transform our data
     X_pca = X.dot(eigenvectors)
@@ -74,49 +72,64 @@ i)
 optimal_label = np.array([0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 0, 0, 0,
                           1, 1, 0, 0, 1, 1, 0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 1])
 
+
+def PCA_plotter(X_pca_1, X_pca_2, X_pca_3, labels = None):
+    fig = plt.figure(figsize=(15, 4))
+    ax0 = fig.add_subplot(1, 3, 1)
+    ax1 = fig.add_subplot(1, 3, 2)
+    ax2 = fig.add_subplot(1, 3, 3, projection='3d')
+    fig.subplots_adjust(hspace=0.2, wspace=0.3)
+    
+    # 1D plot for d = 1
+    ax0.scatter(X_pca_1.T, np.zeros(34), marker='x', c=labels)
+    ax0.set_title("Projection onto 1-D PCA space")
+    ax0.set_xlabel("PCA Dimension 1")
+    ax0.axes.yaxis.set_visible(False)
+    
+    # 2D plot for d = 2
+    ax1.scatter(X_pca_2[:,0], X_pca_2[:,1], marker='o', c=labels)
+    ax1.set_title("Projection onto 2-D PCA space")
+    ax1.set_xlabel("PCA Dimension 1")
+    ax1.set_ylabel("PCA Dimension 2")
+    
+    # 3D plot for d = 3
+    ax2.set_title("Projection onto 3-D PCA space")
+    ax2.scatter(X_pca_3[:,0], X_pca_3[:,1], X_pca_3[:,2], marker='o', c=labels)
+    ax2.set_xlabel("PCA Dimension 1")
+    ax2.set_ylabel("PCA Dimension 2")
+    ax2.set_zlabel("PCA Dimension 3")
+    ax2.view_init(25, 25) 
+    plt.show()
+
 X_pca_1 = PCA_info[1][0]
 X_pca_2 = PCA_info[2][0]
 X_pca_3 = PCA_info[3][0]
 
-plt.scatter(X_pca_1.T, np.zeros(34), marker='x', c=optimal_label)
-plt.title("Plot of the Dataset Projected onto 1-D PCA space")
-plt.xlabel("PCA Dimension 1")
-ax = plt.gca()
-ax.axes.yaxis.set_visible(False)
-plt.show()
-
-plt.scatter(X_pca_2[:,0], X_pca_2[:,1], marker='o', c=optimal_label)
-plt.title("Plot of the Dataset Projected onto 2-D PCA space")
-plt.xlabel("PCA Dimension 1")
-plt.ylabel("PCA Dimension 2")
-plt.show()
-
-fig = plt.figure(figsize=(4, 4))
-ax = Axes3D(fig) 
-plt.title("Plot of the Dataset Projected onto 3-D PCA space")
-ax.scatter(X_pca_3[:,0], X_pca_3[:,1], X_pca_3[:,2], marker='o', c=optimal_label)
-ax.set_xlabel("PCA Dimension 1")
-ax.set_ylabel("PCA Dimension 2")
-ax.set_zlabel("PCA Dimension 3")
-ax.view_init(25, 25) 
-plt.show()
-
+PCA_plotter(X_pca_1, X_pca_2, X_pca_3)
+PCA_plotter(X_pca_1, X_pca_2, X_pca_3, labels = optimal_label)
 
 # Check
+"""
 from sklearn.decomposition import PCA
 pca = PCA(n_components=10, svd_solver='full')
 X_sk_pca = pca.fit_transform(normalized_feature_matrix)
 plt.scatter(X_sk_pca[:,0],X_sk_pca[:,1])
 plt.show()
 pca.explained_variance_ratio_
+"""
 
 """
 2.2.2
 """
 # Compute total variance
 C = 1.0/(len(normalized_feature_matrix)-1) * np.dot(normalized_feature_matrix.T, normalized_feature_matrix)
+## equivalent to np.cov(normalized_feature_matrix.T)
 all_eigenvalues, _ = np.linalg.eig(C)
 total_variance = abs(all_eigenvalues.sum())
+
+C2 = np.dot(normalized_feature_matrix.T, normalized_feature_matrix)
+all_eigenvalues2, _ = np.linalg.eig(C2)
+total_variance2 = abs(all_eigenvalues2.sum())
 
 # Compute explained variances
 explained_variances = {}
